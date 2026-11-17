@@ -1,0 +1,21 @@
+{
+ "institution": "ВВНЗ «Умовний»",
+ "weights": {
+  "groups": {"RG": 0.3, "OS": 0.7},
+  "os_subgroups": {"NPP": 0.3333, "STUD": 0.3333, "ADM": 0.3334},
+  "components": {"culture": 0.3333, "system": 0.3333, "accountability": 0.3334}
+ },
+ "sensitivity_variants": [
+  {"title": "РГ 50 % / ОС 50 %", "RG": 0.5, "OS": 0.5},
+  {"title": "РГ 30 % / ОС 70 % (прийнято)", "RG": 0.3, "OS": 0.7},
+  {"title": "Лише особовий склад", "RG": 0.0, "OS": 1.0}
+ ],
+ "thresholds": {
+  "min_group_size": 5,
+  "gap_levels": 1.0,
+  "self_inflation_levels": 1.0,
+  "checklist_discrepancy_min_level": 3.0,
+  "weak_question_level": 3.0
+ },
+ "demo_mode": true
+}

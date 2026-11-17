@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid g2">
+<div class="card">
+  <h1>Анонімне опитування</h1>
+  {% if not active %}<p>Зараз немає активного циклу оцінювання.</p>{% else %}
+  <p class="muted">{{ settings.institution }} · {{ active.title }}</p>
+  <form method="post" action="/survey/start">
+    <p>Введіть одноразовий код з отриманого аркуша:</p>
+    <p><input class="code" type="text" name="code" placeholder="XXXX-XXXX" autocomplete="off" required></p>
+    <button class="btn">Почати</button>
+  </form>
+  {% if demo %}
+  <h3>Демо: взяти код для категорії</h3>
+  <div class="row">{% for g, code in demo.items() %}{% if code %}
+    <form method="post" action="/survey/start" class="inline"><input type="hidden" name="code" value="{{ code }}"><button class="btn ghost small">{{ E.GROUPS[g].title }}</button></form>
+  {% endif %}{% endfor %}</div>
+  {% endif %}{% endif %}
+</div>
+<div class="card">
+  <h2>Гарантії анонімності</h2>
+  <ul>
+    <li>Код не містить ваших даних і роздається навмання — ніхто не знає, хто отримав який код.</li>
+    <li>Відповіді зберігаються окремо від коду: система лише позначає код як використаний.</li>
+    <li>Не зберігаються ім'я, електронна адреса, IP-адреса чи точний час відповіді.</li>
+    <li>Результати показуються лише для груп, де відповіли щонайменше {{ settings.thresholds.min_group_size }} осіб.</li>
+    <li>Після завершення циклу ви зможете переглянути узагальнені результати своєї категорії.</li>
+  </ul>
+  <p class="note">Оцінювання — інструмент розвитку закладу, а не перевірка окремих людей чи командирів.</p>
+</div>
+</div>
+{% endblock %}

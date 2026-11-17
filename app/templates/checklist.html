@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<p class="note"><a href="/cycles">← Цикли</a></p>
+<h1>Чек-лист: {{ c.title }}</h1>
+<p class="sub">Інституційне оцінювання (не анонімне): уповноважена особа вносить статуси, керівник підтверджує. Усі дії фіксуються в журналі.</p>
+<form method="post">
+<div class="card">
+<table>
+  <tr><th>№</th><th>Пункт і індикатор</th><th>Статус</th><th>Підтверджено</th></tr>
+  {% for it in CHECKLIST['items'] %}{% set r = rows.get(it.no, {}) %}
+  <tr>
+    <td><b>{{ it.no }}</b></td>
+    <td>{{ it.title }}<br><span class="note">Індикатор: {{ it.indicator }}. Зіставляється з питаннями: {% for q in it.questions %}{{ E.QBY[q].report_no }}{{ ', ' if not loop.last }}{% endfor %}</span></td>
+    <td>{% if role == 'upov' %}
+      <select name="st_{{ it.no }}">{% for s in CHECKLIST.statuses %}<option value="{{ s.id }}" {{ 'selected' if r.status == s.id }}>{{ s.title }}</option>{% endfor %}</select>
+      {% else %}{% for s in CHECKLIST.statuses if s.id == r.status %}{{ s.title }}{% endfor %}{% endif %}</td>
+    <td class="note">{{ r.confirmed_by or 'ні' }}</td>
+  </tr>{% endfor %}
+</table>
+<p style="margin-top:14px">{% if role == 'upov' %}<button class="btn">Зберегти статуси</button>{% elif role == 'kerivnyk' %}<button class="btn">Підтвердити чек-лист</button>{% endif %}</p>
+</div>
+</form>
+<details style="margin-top:16px"><summary>Чому саме ці пункти</summary><p>{{ CHECKLIST.selection_rule }}</p>
+<ul>{% for it in CHECKLIST['items'] %}<li><b>{{ it.no }}</b>: {{ it.why }}</li>{% endfor %}</ul>
+{% for n in CHECKLIST.not_covered %}<p class="note">{{ n.note }}</p>{% endfor %}</details>
+{% endblock %}

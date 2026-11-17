@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Журнал дій</h1>
+<p class="sub">Фіксуються дії посадових осіб. Дії респондентів не журналюються, щоб не порушувати анонімність.</p>
+<div class="card"><table>
+<tr><th>Час</th><th>Роль</th><th>Дія</th><th>Деталі</th></tr>
+{% for r in rows %}<tr><td class="note">{{ r.ts }}</td><td>{{ r.role }}</td><td>{{ r.action }}</td><td class="note">{{ r.details }}</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

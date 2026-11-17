@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ E.Q.questionnaires[qn].title }}</h1>
+<p class="sub">Категорія: {{ E.GROUPS[s.grp].title }}. Оберіть один варіант, який найбільше підходить. Усі питання обов'язкові.</p>
+{% if error %}<div class="signal">{{ error }}</div>{% endif %}
+<form method="post">
+{% set sec = namespace(c=None) %}
+{% for q in qs %}
+  {% if q.component != sec.c %}{% set sec.c = q.component %}
+    <h2 style="margin-top:22px">{% if q.component %}{% for c in E.COMPONENTS if c.id == q.component %}Розділ {{ c.report_no }}. {{ c.title }}{% endfor %}{% else %}Розділ 4. Загальний рівень зрілості{% endif %}</h2>
+  {% endif %}
+  <fieldset class="q">
+    <legend>{{ q.text[qn] }}</legend>
+    {% for o in q.options[qn] %}
+    <label class="opt"><input type="radio" name="{{ q.id }}" value="{{ loop.index }}" required {{ 'checked' if given.get(q.id) == loop.index|string }}><span>{{ o }}</span></label>
+    {% endfor %}
+  </fieldset>
+{% endfor %}
+<button class="btn">Надіслати відповіді</button>
+<p class="note">Після надсилання код стане недійсним. Змінити відповіді буде неможливо — так гарантується, що з одного коду надходить лише одна анкета.</p>
+</form>
+{% endblock %}

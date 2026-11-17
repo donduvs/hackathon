@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Цикли оцінювання</h1>
+<p class="sub">Охоплення показується як кількість використаних кодів. Хто саме відповів — система не знає.</p>
+
+{% if role == 'upov' %}
+<div class="grid g2" style="margin-bottom:18px">
+  <div class="card">
+    <h2>Новий цикл оцінювання</h2>
+    {% if active %}<p class="muted">Зараз триває цикл. Новий можна створити після його завершення.</p>
+    {% else %}
+    <form method="post" action="/cycles/new">
+      <p><label>Рік <input type="text" name="year" value="{{ next_year }}" size="6"></label></p>
+      <table>
+        <tr><th>Категорія</th><th class="num">Кількість кодів</th></tr>
+        {% for g, meta in E.GROUPS.items() %}<tr><td>{{ meta.title }}</td><td class="num"><input type="text" name="n_{{ g }}" value="{{ {'RG': 12, 'NPP': 45, 'STUD': 100, 'ADM': 22}[g] }}" size="5"></td></tr>{% endfor %}
+      </table>
+      <p class="note">Порада: беріть на 10 % більше, ніж людей у категорії, — на випадок зіпсованих карток.</p>
+      <button class="btn">Створити цикл і згенерувати коди</button>
+    </form>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Посилання на опитування</h2>
+    <div class="row" style="align-items:flex-start">
+      <div style="width:200px">{{ survey_qr|safe }}</div>
+      <div style="flex:1;min-width:200px">
+        <p><code>{{ base }}survey</code></p>
+        <p class="note">Цей QR веде на сторінку введення коду — його можна показати на проєкторі. Персональні QR з кодами — на надрукованих картках.
+        {% if settings.demo_mode %}У демо-версії на цій сторінці є кнопки, що видають код потрібної категорії.{% endif %}</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% for c, cov, printable in rows %}
+<div class="card" style="margin-bottom:16px">
+  <div class="row spread">
+    <h2 style="margin:0">{{ c.title }} {% if c.status == 'active' %}<span class="badge warn">триває</span>{% else %}<span class="badge">завершено {{ c.closed }}</span>{% endif %}</h2>
+    <div class="row">
+      <a class="btn ghost small" href="/checklist/{{ c.id }}">Чек-лист</a>
+      {% if c.status == 'active' and role == 'upov' %}
+        {% if printable %}<a class="btn ghost small" href="/cycles/{{ c.id }}/sheet.pdf">Аркуш кодів з QR (PDF, {{ printable }})</a>{% endif %}
+        <form class="inline" method="post" action="/cycles/{{ c.id }}/close" onsubmit="return confirm('Завершити цикл? Невикористані коди перестануть діяти, а результати стануть доступні.')"><button class="btn small">Завершити цикл і відкрити результати</button></form>
+      {% endif %}
+    </div>
+  </div>
+  <table style="margin-top:12px">
+    <tr><th>Категорія</th><th class="num">Видано кодів</th><th class="num">Використано</th><th class="num">Охоплення</th><th></th></tr>
+    {% for g, meta in E.GROUPS.items() %}{% set used, issued = cov[g] %}
+    <tr><td>{{ meta.title }}</td><td class="num">{{ issued }}</td><td class="num">{{ used }}</td>
+      <td class="num">{{ fmt(100 * used / issued, 0) if issued else '—' }} %</td>
+      <td>{% if used < settings.thresholds.min_group_size %}<span class="badge grey">менше {{ settings.thresholds.min_group_size }}: результати буде приховано</span>{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  {% if c.status == 'active' and role == 'upov' and printable %}
+  <form method="post" action="/cycles/{{ c.id }}/purge" style="margin-top:12px" onsubmit="return confirm('Видалити відкриті коди? Після цього аркуш не можна буде завантажити повторно.')">
+    <span class="note">У системі ще зберігаються відкриті коди для друку ({{ printable }}). Після друку видаліть їх — лишаться тільки хеші.{% if settings.demo_mode %} У демо-версії разом із ними зникнуть і демо-кнопки.{% endif %}</span>
+    <button class="btn ghost small">Аркуш надруковано — видалити відкриті коди</button>
+  </form>{% endif %}
+</div>
+{% endfor %}
+{% endblock %}

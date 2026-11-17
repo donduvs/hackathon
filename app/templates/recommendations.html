@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Рекомендації</h1>
+<p class="sub">Система пропонує заходи типового плану (Додаток Д) для слабких напрямів і напрямів із сигналами. Рішення ухвалює керівник; виконання підтверджує відповідальний; результат перевіряє наступний цикл оцінювання.</p>
+
+<div class="card">
+  <h2>Нові пропозиції за результатами {{ cur.year }} року <span class="badge">{{ proposals|length }}</span></h2>
+  {% for p in proposals %}
+  <div class="q">
+    <div class="row spread"><b>{{ p.measure.title }}</b><span class="badge grey">Додаток Д, п. {{ p.measure.plan_no }}</span></div>
+    <p class="note" style="margin:6px 0 10px">Напрям: <a href="/question/{{ p.question }}?cycle={{ cur.id }}">{{ E.QBY[p.question].report_no }} {{ E.QBY[p.question].title }}</a> (рівень {{ fmt(res.questions[p.question].level) }}).
+      Підстава: {{ p.reason }}.</p>
+    {% if role == 'kerivnyk' %}
+    <form method="post" action="/recommendations/decide" class="row">
+      <input type="hidden" name="cycle_id" value="{{ cur.id }}"><input type="hidden" name="question_id" value="{{ p.question }}">
+      <input type="hidden" name="measure_id" value="{{ p.measure.id }}"><input type="hidden" name="reason" value="{{ p.reason }}">
+      <input type="text" name="responsible" value="{{ p.measure.responsible }}" size="34" aria-label="Відповідальний">
+      <input type="date" name="due" value="{{ cur.year + 1 }}-03-01" aria-label="Строк">
+      <button class="btn small" name="action" value="accept">Прийняти</button>
+      <button class="btn ghost small" name="action" value="reject">Відхилити</button>
+    </form>
+    {% else %}<p class="note">Рішення ухвалює керівник.</p>{% endif %}
+  </div>
+  {% else %}<p class="muted">Нових пропозицій немає: за всіма напрямами рішення вже ухвалено.</p>{% endfor %}
+</div>
+
+<div class="card" style="margin-top:18px">
+  <h2>Ухвалені рішення і контроль виконання</h2>
+  <table>
+    <tr><th>Цикл</th><th>Захід</th><th>Відповідальний / строк</th><th>Статус</th><th class="num">Рівень тоді → наступний цикл</th></tr>
+    {% for r in existing %}
+    <tr>
+      <td>{{ r.year }}</td>
+      <td>{{ measures[r.measure_id].title }}<br><span class="note">{{ E.QBY[r.question_id].report_no }} {{ E.QBY[r.question_id].title }}. {{ r.result_note or r.decision_note }}</span></td>
+      <td>{{ r.responsible or '—' }}<br><span class="note">{{ r.due or '' }}</span></td>
+      <td><span class="badge {{ 'grey' if r.status == 'rejected' else ('warn' if r.status in ('accepted', 'in_progress') else '') }}">{{ REC_STATUS[r.status] }}</span>
+        {% if r.status in ('accepted', 'in_progress') and r.due and r.due < today %}<span class="badge warn">прострочено</span>{% endif %}
+        {% if role in ('vykonavets', 'upov') and r.status in ('accepted', 'in_progress') %}
+        <form method="post" action="/recommendations/status" style="margin-top:6px">
+          <input type="hidden" name="id" value="{{ r.id }}">
+          <input type="text" name="result_note" placeholder="Що зроблено" size="18">
+          <select name="status"><option value="in_progress">Виконується</option><option value="done">Виконано</option></select>
+          <button class="btn small">Оновити</button>
+        </form>{% endif %}</td>
+      <td class="num">{{ fmt(r.level_then) }} → {% if r.level_next is not none %}{% set d = r.level_next - r.level_then %}<b>{{ fmt(r.level_next) }}</b> <span class="delta {{ 'up' if d > 0 else 'down' }}">({{ '+' if d >= 0 }}{{ fmt(d) }})</span>{% else %}<span class="note">чекає циклу</span>{% endif %}</td>
+    </tr>{% endfor %}
+  </table>
+  <p class="note">Ефект рекомендації оцінюється за зміною рівня її питання в наступному завершеному циклі. Це підстава для рішення, а не автоматичний висновок: на рівень впливають і інші чинники.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Integrity Management Dashboard{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+{% if settings.demo_mode %}<div class="demo-bar">Демонстраційна версія: лише синтетичні дані. {{ settings.institution }} — вигаданий заклад.</div>{% endif %}
+<header class="top"><div class="wrap">
+  <a class="brand" href="/"><span class="dot"></span>Integrity Dashboard</a>
+  {% set p = request.url.path %}
+  <nav>
+  {% if role in ('kerivnyk', 'upov', 'vykonavets') %}
+    <a href="/dashboard" class="{{ 'on' if p.startswith('/dashboard') or p.startswith('/question') }}">Панель</a>
+    <a href="/recommendations" class="{{ 'on' if p.startswith('/recommendations') }}">Рекомендації</a>
+    {% if role in ('upov', 'kerivnyk') %}<a href="/cycles" class="{{ 'on' if p.startswith('/cycles') or p.startswith('/checklist') }}">Цикли і чек-лист</a>{% endif %}
+    <a href="/methodology" class="{{ 'on' if p.startswith('/methodology') }}">Методика</a>
+    {% if role in ('upov', 'kerivnyk') %}<a href="/audit" class="{{ 'on' if p.startswith('/audit') }}">Журнал дій</a>{% endif %}
+  {% else %}
+    <a href="/survey" class="{{ 'on' if p.startswith('/survey') }}">Пройти опитування</a>
+    <a href="/results" class="{{ 'on' if p.startswith('/results') }}">Результати для учасників</a>
+    <a href="/methodology" class="{{ 'on' if p.startswith('/methodology') }}">Методика</a>
+  {% endif %}
+  </nav>
+  <div class="who">
+  {% if role %}<span class="badge">{{ ROLES[role] }}</span><a href="/logout">Вийти</a>{% else %}<a href="/">Увійти</a>{% endif %}
+  </div>
+</div></header>
+<main><div class="wrap">
+{% if flash %}<div class="flash">{{ flash }}</div>{% endif %}
+{% block content %}{% endblock %}
+</div></main>
+<footer><div class="wrap">Прототип для IV Хакатону BITEC. Розрахунки виконуються за відкритими правилами (див. «Методика»); штучний інтелект у формуванні висновків не використовується. Оцінювання — інструмент розвитку, а не контролю чи покарання.</div></footer>
+</body>
+</html>

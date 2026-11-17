@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+{% set r = res.questions[q.id] %}
+<p class="note"><a href="/dashboard?cycle={{ cur.id }}">← Панель</a> · {% for c in E.COMPONENTS if c.id == q.component %}Розділ {{ c.report_no }}. {{ c.title }}{% endfor %}</p>
+<h1>{{ q.report_no }}. {{ q.title }}</h1>
+<div class="tabs">{% for c in cl %}<a href="?cycle={{ c.id }}" class="{{ 'on' if c.id == cur.id }}">{{ c.year }}</a>{% endfor %}</div>
+
+<div class="grid g3">
+  <div class="card"><h2>Рівень питання</h2><div class="kpi">{{ fmt(r.level) }}</div><p class="muted">{{ level_name(r.level) }}</p>
+    <p class="note">= {{ fmt(settings.weights.groups.RG, 1) }} × РГ ({{ fmt(r.median.RG) }}) + {{ fmt(settings.weights.groups.OS, 1) }} × ОС ({{ fmt(r.median.OS) }}){% if r.median.RG is none or r.median.OS is none %}; є дані лише однієї групи{% endif %}</p></div>
+  <div class="card"><h2>Медіани</h2>
+    <table>{% for g, meta in E.GROUPS.items() %}<tr><td>{{ meta.title }}</td><td class="num">{{ fmt(r.median[g]) }}</td></tr>{% endfor %}
+    <tr><td><b>Особовий склад (разом)</b></td><td class="num"><b>{{ fmt(r.median.OS) }}</b></td></tr></table></div>
+  <div class="card"><h2>Динаміка</h2>
+    {{ charts.line([('Рівень', '#1D6B64', hist|map(attribute='1')|map(attribute='questions')|map(attribute=q.id)|map(attribute='level')|list)], hist|map(attribute='0')|map(attribute='year')|list, 1, 5, '', 330)|safe }}</div>
+</div>
+
+<div class="card" style="margin-top:18px">
+  <h2>Розподіл відповідей</h2>
+  {% set rows = [('Робоча група', r.dist.RG)] %}
+  {% for g in E.OS_SUB %}{% set _ = rows.append((E.GROUPS[g].title, r.dist[g])) %}{% endfor %}
+  {% set _ = rows.append(('Особовий склад (разом)', r.dist.OS)) %}
+  {{ charts.stacked(rows)|safe }}
+  <table style="margin-top:12px">
+    <tr><th>Варіант відповіді</th><th class="num">Робоча група, %</th><th class="num">Особовий склад, %</th><th>Рівень зрілості</th></tr>
+    {% for name in q.short_options %}<tr><td>{{ name }}</td>
+      <td class="num">{{ fmt(r.dist.RG[loop.index0]) if r.dist.RG else '—' }}</td>
+      <td class="num">{{ fmt(r.dist.OS[loop.index0]) if r.dist.OS else '—' }}</td>
+      <td><span class="badge" style="background:{{ LEVEL_COLORS[loop.index0] }};color:{{ '#fff' if loop.index0 >= 3 else '#1F2430' }}">{{ loop.index }}. {{ E.LEVELS[loop.index0] }}</span></td></tr>{% endfor %}
+  </table>
+  <h3>Опис результатів</h3>
+  {% for rule, text in desc %}<p>{{ text }} <span class="note">[{{ rule }}]</span></p>{% endfor %}
+  <p class="note">Текст сформовано автоматично за відкритими шаблонами (правила D1–D5, див. «Методика»); посадова особа може відредагувати його у звіті DOCX перед затвердженням.</p>
+</div>
+
+<div class="grid g2" style="margin-top:18px">
+  <div class="card"><h2>Зіставлення з чек-листом</h2>
+    {% for it in items %}<p><b>{{ it.no }}</b> {{ it.title }}<br>
+      Статус у {{ cur.year }}: {% set st = res.checklist.get(it.no) %}<span class="badge {{ 'warn' if st == 'todo' else ('' if st == 'full' else 'grey') }}">{{ {'full': 'Впроваджено повністю', 'partial': 'Впроваджено частково', 'todo': 'Підлягає впровадженню'}.get(st, 'немає даних') }}</span></p>
+    {% else %}<p class="muted">Для цього питання в чек-листі немає відповідного пункту.</p>{% endfor %}</div>
+  <div class="card"><h2>Рекомендації за цим напрямом</h2>
+    {% for rc in recs %}<p><span class="badge {{ 'grey' if rc.status == 'rejected' else '' }}">{{ REC_STATUS[rc.status] }}</span> {{ measures[rc.measure_id].title }}<br><span class="note">Цикл {% for c in cl if c.id == rc.cycle_id %}{{ c.year }}{% else %}{{ rc.cycle_id }}{% endfor %} · {{ rc.responsible or '—' }} · строк {{ rc.due or '—' }}</span></p>
+    {% else %}<p class="muted">Рекомендацій ще не було.</p>{% endfor %}</div>
+</div>
+<details style="margin-top:18px"><summary>Повні тексти варіантів відповіді (Анкета 1)</summary>
+  <ol>{% for o in q.options.A1 %}<li>{{ o }}</li>{% endfor %}</ol></details>
+{% endblock %}

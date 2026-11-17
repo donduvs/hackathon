@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+{% if not cur %}<p>Немає завершених циклів оцінювання.</p>{% else %}
+<div class="row spread">
+  <div><h1>Стан системи доброчесності</h1><p class="sub">{{ settings.institution }} · {{ cur.title }} · завершено {{ cur.closed }}</p></div>
+  <div class="row">
+    <a class="btn ghost small" href="/report/{{ cur.id }}.docx">Звіт DOCX</a>
+    <a class="btn ghost small" href="/report/{{ cur.id }}.pdf">Звіт PDF</a>
+  </div>
+</div>
+<div class="tabs">{% for c in cl %}<a href="?cycle={{ c.id }}" class="{{ 'on' if c.id == cur.id }}">{{ c.year }}</a>{% endfor %}
+{% if active %}<span class="badge grey" style="align-self:center">{{ active.year }}: опитування триває</span>{% endif %}</div>
+
+<div class="grid g-hero">
+  <div class="card">
+    <h2>Integrity Index</h2>
+    {{ charts.gauge(res.index, level_name(res.level))|safe }}
+    {% if prev %}{% set d = res.index - prev.index %}
+    <p style="margin:4px 0 0">Порівняно з попереднім циклом: <span class="delta {{ 'up' if d >= 0 else 'down' }}">{{ '+' if d >= 0 }}{{ fmt(d) }}</span></p>{% endif %}
+    <p class="note">{% if res.robust %}Висновок стійкий: за всіх перевірених ваг груп рівень однаковий.{% else %}Увага: за різних ваг груп рівень змінюється — див. «Методика».{% endif %}</p>
+  </div>
+  <div class="card">
+    <h2>Компоненти</h2>
+    {% set rows = [] %}{% for c in E.COMPONENTS %}{% set _ = rows.append((c.title, res.components[c.id], None)) %}{% endfor %}
+    {{ charts.level_bars(rows, 95, 170)|safe }}
+    <div class="legend">{% for t in E.LEVELS %}<span><i style="background:{{ LEVEL_COLORS[loop.index0] }}"></i>{{ loop.index }}. {{ t }}</span>{% endfor %}</div>
+  </div>
+  <div class="card">
+    <h2>Факти й охоплення</h2>
+    <div class="kpi">{{ fmt(res.implementation, 0) }}<small> % впровадження інструментів</small></div>
+    <p class="note">За чек-листом (Додаток Б): «повністю» = 1, «частково» = 0,5. До індексу не входить, показується поряд.</p>
+    <table>
+      <tr><th>Група</th><th class="num">Відповідей</th></tr>
+      {% for g, meta in E.GROUPS.items() %}<tr><td>{{ meta.title }}</td><td class="num">{% if res.visible[g] %}{{ res.counts[g] }}{% else %}<span class="badge grey">менше {{ settings.thresholds.min_group_size }}</span>{% endif %}</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="grid g2" style="margin-top:18px">
+  <div class="card">
+    <h2>Сигнали для додаткового аналізу <span class="badge warn">{{ res.signals|length }}</span></h2>
+    {% for s in res.signals %}<div class="signal"><b>{{ s.title }}</b><br>{{ s.text }}{% if s.question != 'self_level' %} <a href="/question/{{ s.question }}?cycle={{ cur.id }}">Деталі →</a>{% endif %}</div>
+    {% else %}<div class="ok">Сигналів немає.</div>{% endfor %}
+  </div>
+  <div class="card">
+    <h2>Динаміка</h2>
+    {{ charts.line([('Index', '#1F2430', series.index)], series.years)|safe }}
+    {{ charts.line([('Культура', '#1D6B64', series.culture), ('Система', '#C08A3E', series.system), ('Підзвітність', '#6B7080', series.accountability)], series.years, 1, 5)|safe }}
+    <p class="note">Верхня діаграма — Integrity Index (0–100), нижня — рівні компонентів (1–5).</p>
+  </div>
+</div>
+
+<div class="grid g2" style="margin-top:18px">
+  <div class="card">
+    <h2>Робоча група і особовий склад</h2>
+    {% set axes = E.QUESTIONS|map(attribute='report_no')|list %}
+    {{ charts.radar(axes, [('РГ', charts.RG_COLOR, series.radar_rg), ('ОС', charts.OS_COLOR, series.radar_os)])|safe }}
+    <div class="legend"><span><i style="background:{{ charts.RG_COLOR }}"></i>Робоча група</span><span><i style="background:{{ charts.OS_COLOR }}"></i>Особовий склад</span></div>
+    <p class="note">Якщо контур робочої групи систематично ширший — це ознака завищеної самооцінки тих, хто відповідає за систему.</p>
+  </div>
+  <div class="card">
+    <h2>Сильні сторони та проблемні напрями</h2>
+    <h3>Найсильніші</h3>
+    <ul>{% for q in res.strong %}<li><a href="/question/{{ q }}?cycle={{ cur.id }}">{{ E.QBY[q].report_no }} {{ E.QBY[q].title }}</a> — {{ fmt(res.questions[q].level) }}</li>{% endfor %}</ul>
+    <h3>Потребують уваги</h3>
+    <ul>{% for q in res.weak %}<li><a href="/question/{{ q }}?cycle={{ cur.id }}">{{ E.QBY[q].report_no }} {{ E.QBY[q].title }}</a> — {{ fmt(res.questions[q].level) }}</li>{% endfor %}</ul>
+    {% set open_recs = recs|selectattr('status', 'in', ['accepted', 'in_progress'])|list %}
+    <p><a href="/recommendations">Рекомендації в роботі: {{ open_recs|length }} →</a></p>
+  </div>
+</div>
+
+<div class="card" style="margin-top:18px">
+  <h2>Усі питання</h2>
+  <table>
+    <tr><th>№</th><th>Питання</th><th class="num">РГ</th><th class="num">ОС</th><th class="num">Рівень</th><th class="num">Зміна</th><th></th></tr>
+    {% for q in E.QUESTIONS %}{% set r = res.questions[q.id] %}
+    <tr>
+      <td>{{ q.report_no }}</td>
+      <td><a href="/question/{{ q.id }}?cycle={{ cur.id }}">{{ q.title }}</a></td>
+      <td class="num">{{ fmt(r.median.RG) }}</td><td class="num">{{ fmt(r.median.OS) }}</td>
+      <td class="num"><b>{{ fmt(r.level) }}</b></td>
+      <td class="num">{% if prev and prev.questions[q.id].level is not none and r.level is not none %}{% set d = r.level - prev.questions[q.id].level %}<span class="delta {{ 'up' if d >= 0 else 'down' }}">{{ '+' if d >= 0 }}{{ fmt(d) }}</span>{% endif %}</td>
+      <td>{% for s in res.signals if s.question == q.id %}<span class="badge warn">{{ {'gap': 'розрив', 'checklist': 'чек-лист'}[s.type] }}</span> {% endfor %}</td>
+    </tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

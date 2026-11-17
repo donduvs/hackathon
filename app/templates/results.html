@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Результати для учасників</h1>
+<p class="sub">{{ settings.institution }} · {{ cur.title }}. Показано лише узагальнені дані; результати категорій, де відповіли менше {{ settings.thresholds.min_group_size }} осіб, приховано.</p>
+<div class="tabs">{% for g, meta in E.GROUPS.items() %}<a href="?grp={{ g }}" class="{{ 'on' if g == grp }}">{{ meta.title }}</a>{% endfor %}</div>
+<div class="grid g2">
+  <div class="card"><h2>Заклад загалом</h2>{{ charts.gauge(res.index, level_name(res.level))|safe }}</div>
+  <div class="card"><h2>Як оцінила ваша категорія</h2>
+  {% if res.visible[grp] %}
+    {% set rows = [] %}{% for q in E.QUESTIONS %}{% if res.questions[q.id].median[grp] is not none %}{% set _ = rows.append((q.report_no ~ ' ' ~ q.title[:34] ~ ('…' if q.title|length > 34 else ''), res.questions[q.id].median[grp], None)) %}{% endif %}{% endfor %}
+    {{ charts.level_bars(rows)|safe }}
+  {% else %}<p class="muted">У цій категорії відповідей менше за поріг — результати не показуються, щоб унеможливити ідентифікацію.</p>{% endif %}
+  </div>
+</div>
+<div class="card" style="margin-top:18px"><h2>Що заклад робить за результатами</h2>
+<p class="muted">Найслабші напрями: {% for q in res.weak %}{{ E.QBY[q].title }}{{ '; ' if not loop.last }}{% endfor %}. За ними керівництво ухвалює рекомендації з відповідальними і строками; їх виконання перевіряється наступним опитуванням. Ваша чесна відповідь безпосередньо впливає на ці рішення.</p></div>
+{% endblock %}
