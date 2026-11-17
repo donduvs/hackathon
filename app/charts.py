@@ -54,7 +54,9 @@ def level_bars(rows, lw=210, bw=300):
             col = LEVEL_COLORS[min(4, max(0, int(lv + 1e-9) - 1))]
             out.append(f'<rect x="{lw}" y="{y}" width="{max(wpx, 2):.1f}" height="20" rx="4" fill="{col}"/>'
                        f'<text x="{lw + wpx + 8:.1f}" y="{y + 15}" class="val">{_f(lv)}</text>')
-        label = escape(name)
+        maxc = int(lw / 7.4)  # скільки символів уміщується в колонку підписів
+        short = name if len(name) <= maxc else name[:maxc - 1].rstrip() + "…"
+        label = f"<title>{escape(name)}</title>{escape(short)}"
         if href:
             label = f'<a href="{href}">{label}</a>'
         out.append(f'<text x="{lw - 10}" y="{y + 15}" text-anchor="end" class="lab">{label}</text>')

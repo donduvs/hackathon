@@ -7,8 +7,8 @@
   <div class="card"><h2>Заклад загалом</h2>{{ charts.gauge(res.index, level_name(res.level))|safe }}</div>
   <div class="card"><h2>Як оцінила ваша категорія</h2>
   {% if res.visible[grp] %}
-    {% set rows = [] %}{% for q in E.QUESTIONS %}{% if res.questions[q.id].median[grp] is not none %}{% set _ = rows.append((q.report_no ~ ' ' ~ q.title[:34] ~ ('…' if q.title|length > 34 else ''), res.questions[q.id].median[grp], None)) %}{% endif %}{% endfor %}
-    {{ charts.level_bars(rows)|safe }}
+    {% set rows = [] %}{% for q in E.QUESTIONS %}{% if res.questions[q.id].median[grp] is not none %}{% set _ = rows.append((q.report_no ~ ' ' ~ q.title, res.questions[q.id].median[grp], None)) %}{% endif %}{% endfor %}
+    {{ charts.level_bars(rows, 250, 260)|safe }}
   {% else %}<p class="muted">У цій категорії відповідей менше за поріг — результати не показуються, щоб унеможливити ідентифікацію.</p>{% endif %}
   </div>
 </div>

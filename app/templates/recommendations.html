@@ -16,6 +16,7 @@
       <input type="hidden" name="measure_id" value="{{ p.measure.id }}"><input type="hidden" name="reason" value="{{ p.reason }}">
       <input type="text" name="responsible" value="{{ p.measure.responsible }}" size="34" aria-label="Відповідальний">
       <input type="date" name="due" value="{{ cur.year + 1 }}-03-01" aria-label="Строк">
+      <input type="text" name="note" placeholder="Коментар (обов'язковий, якщо відхиляєте)" size="30" aria-label="Коментар">
       <button class="btn small" name="action" value="accept">Прийняти</button>
       <button class="btn ghost small" name="action" value="reject">Відхилити</button>
     </form>

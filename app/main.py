@@ -1,4 +1,4 @@
-"""Вебзастосунок Integrity Management Dashboard (прототип).
+"""Камертон — вебзастосунок Integrity Management Dashboard (прототип).
 
 Запуск:  uvicorn app.main:app --reload
 """
@@ -314,6 +314,8 @@ async def rec_decide(request):
         return go("/recommendations", request, "Рішення щодо рекомендацій ухвалює керівник.")
     f = await request.form()
     action = f.get("action")
+    if action != "accept" and not (f.get("note") or "").strip():
+        return go("/recommendations", request, "Щоб відхилити рекомендацію, вкажіть причину: вона потрапить у журнал дій.")
     with db.tx() as con:
         con.execute("""INSERT INTO recommendations (cycle_id, question_id, measure_id, reason, status, responsible, due,
                        decided_by, decision_note, result_note) VALUES (?,?,?,?,?,?,?,?,?,'')""",
@@ -321,7 +323,7 @@ async def rec_decide(request):
                      "accepted" if action == "accept" else "rejected",
                      f.get("responsible", ""), f.get("due", ""), ROLES["kerivnyk"], f.get("note", "")))
         db.log(con, ROLES["kerivnyk"], "Рекомендацію " + ("прийнято" if action == "accept" else "відхилено"),
-               f"{f['measure_id']} ({f['question_id']})")
+               f"{f['measure_id']} ({f['question_id']})" + (f": {f['note'].strip()}" if (f.get("note") or "").strip() else ""))
     return go("/recommendations", request, "Рішення збережено.")
 
 
@@ -473,7 +475,7 @@ async def report(request):
         data = report_pdf(c, res)
         mt = "application/pdf"
     return Response(data, media_type=mt,
-                    headers={"Content-Disposition": f'attachment; filename="zvit-integrity-{c["year"]}.{fmt_}"'})
+                    headers={"Content-Disposition": f'attachment; filename="camerton-zvit-{c["year"]}.{fmt_}"'})
 
 
 if not db.DB_PATH.exists():

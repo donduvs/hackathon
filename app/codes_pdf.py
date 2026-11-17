@@ -64,6 +64,10 @@ def sheet(codes, base_url, institution, cycle_title, groups):
         renderPDF.draw(qr_drawing(f"{host}/s/{code}", qs), c, x0 + 4 * mm, y0 + (ch - qs) / 2)
         tx = x0 + qs + 7 * mm
         c.setFillColorRGB(0.12, 0.14, 0.19)
+        c.setFont("DejaVu", 7)
+        c.setFillColorRGB(0.11, 0.42, 0.39)
+        c.drawString(tx, y0 + ch - 6.5 * mm, "КАМЕРТОН")
+        c.setFillColorRGB(0.12, 0.14, 0.19)
         c.setFont("DejaVu-Bold", 10)
         c.drawString(tx, y0 + ch - 11 * mm, "Анонімне опитування")
         c.setFont("DejaVu", 8)

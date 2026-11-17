@@ -81,6 +81,7 @@ def code():
 
 
 def main():
+    rnd.seed(2026)  # однакові демо-дані після кожного відновлення
     db.init(drop=True)
     with db.tx() as con:
         for cid, year in enumerate((2024, 2025, 2026), start=1):

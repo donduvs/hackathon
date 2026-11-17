@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Integrity Management Dashboard{% endblock %}</title>
+<title>{% block title %}Камертон — панель доброчесності{% endblock %}</title>
+<link rel="icon" type="image/svg+xml" href="/static/logo.svg">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 {% if settings.demo_mode %}<div class="demo-bar">Демонстраційна версія: лише синтетичні дані. {{ settings.institution }} — вигаданий заклад.</div>{% endif %}
 <header class="top"><div class="wrap">
-  <a class="brand" href="/"><span class="dot"></span>Integrity Dashboard</a>
+  <a class="brand" href="/"><img class="logo" src="/static/logo.svg" alt="" width="26" height="26">Камертон</a>
   {% set p = request.url.path %}
   <nav>
   {% if role in ('kerivnyk', 'upov', 'vykonavets') %}

@@ -22,7 +22,7 @@ header.top { background: var(--surface); border-bottom: 1px solid var(--line); p
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
 .top .wrap { display: flex; align-items: center; gap: 22px; min-height: 60px; flex-wrap: wrap; }
 .brand { font-weight: 700; letter-spacing: -.01em; color: var(--ink); display: flex; align-items: center; gap: 10px; }
-.brand .dot { width: 22px; height: 22px; border-radius: 7px; background: conic-gradient(var(--accent) 0 70%, var(--accent-soft) 0); }
+.brand .logo { width: 26px; height: 26px; display: block; }
 nav { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
 nav a { color: var(--muted); padding: 7px 12px; border-radius: 10px; font-weight: 500; }
 nav a.on, nav a:hover { background: var(--accent-soft); color: var(--accent); text-decoration: none; }

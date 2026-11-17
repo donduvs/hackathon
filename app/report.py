@@ -60,10 +60,14 @@ def report_docx(cycle, res):
 
     n_rg = res["counts"]["RG"]
     n_os = sum(res["counts"][g] for g in E.OS_SUB)
+    # Якщо якусь підгрупу приховано, загальну суму не показуємо: з неї можна вирахувати приховане число.
+    os_total = f"{n_os}{NB}респондентів: " if all(res["visible"][g] for g in E.OS_SUB) else ""
     d.add_paragraph(
         f"Проведено анонімне опитування двох категорій респондентів: членів робочої групи "
-        f"(Анкета{NB}1, {n_rg}{NB}респондентів) та особового складу (Анкета{NB}2, {n_os}{NB}респондентів: "
-        + ", ".join(f"{E.GROUPS[g]['title'].lower()} — {res['counts'][g]}" for g in E.OS_SUB) +
+        f"(Анкета{NB}1, {n_rg}{NB}респондентів) та особового складу (Анкета{NB}2, {os_total}"
+        + ", ".join(f"{E.GROUPS[g]['title'].lower()} — "
+               + (str(res['counts'][g]) if res['visible'][g] else f"менше{NB}{E.SETTINGS['thresholds']['min_group_size']}")
+               for g in E.OS_SUB) +
         "). Опитування проведено у вебсистемі за одноразовими анонімними кодами; відповіді зберігаються "
         "без зв'язку з кодом, часом і мережевою адресою респондента.")
     d.add_paragraph(
