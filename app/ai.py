@@ -70,11 +70,16 @@ def facts(cycle, res, prev=None, proposals=()):
     return {
         "заклад": E.SETTINGS["institution"], "рік": cycle["year"],
         "Integrity Index": E.fmt(res["index"]), "рівень зрілості": E.level_name(res["level"]),
-        "попередній рік": ({"Integrity Index": E.fmt(prev["index"]), "рівень": E.level_name(prev["level"])} if prev else None),
+        "попередній рік": ({"Integrity Index": E.fmt(prev["index"]), "рівень": E.level_name(prev["level"]),
+                            "компоненти": {c["title"]: E.fmt(prev["components"][c["id"]]) for c in E.COMPONENTS}}
+                           if prev else "даних за попередній рік немає: не порівнюй з минулим"),
         "компоненти": {c["title"]: E.fmt(res["components"][c["id"]]) for c in E.COMPONENTS},
         "стійкість до ваг": "висновок стійкий" if res["robust"] else "рівень залежить від ваг груп",
         "питання": q,
-        "сильні сторони": [E.QBY[x]["title"] for x in res["strong"]],
+        "сильні сторони": [E.QBY[x]["title"] + next((" (УВАГА: висока оцінка не підтверджена об'єктивним показником — "
+                                                    "згадай це застереження)" for sg in res["signals"]
+                                                    if sg["type"] == "objective" and sg["question"] == x), "")
+                           for x in res["strong"]],
         "проблемні напрями": [E.QBY[x]["title"] for x in res["weak"]],
         "сигнали: розрив між групами": [s["title"] + ": " + s["text"].split(" Правило")[0] for s in res["signals"] if s["type"] == "gap"],
         "сигнали: завищена самооцінка (тлумачити як схильність до соціально бажаних відповідей)":
