@@ -9,7 +9,7 @@
   AI_PROVIDER  groq | anthropic | openai   (openai — будь-який сумісний сервіс,
                зокрема локальна модель Ollama у закритому контурі)
   AI_API_KEY   ключ доступу (не зберігається в репозиторії)
-  AI_MODEL     назва моделі, напр. llama-3.3-70b-versatile
+  AI_MODEL     назва моделі, напр. openai/gpt-oss-120b (відкрита модель OpenAI на Groq)
   AI_BASE_URL  адреса сумісного сервісу для AI_PROVIDER=openai,
                напр. http://localhost:11434/v1
 Китайські моделі (Qwen, DeepSeek тощо) не використовуються відповідно до Політики ШІ хакатону.
@@ -43,7 +43,7 @@ def config():
     model = (os.environ.get("AI_MODEL") or "").strip()
     base = (os.environ.get("AI_BASE_URL") or "").strip()
     if not model:
-        model = {"groq": "llama-3.3-70b-versatile", "anthropic": "claude-haiku-5-5"}.get(prov, "")
+        model = {"groq": "openai/gpt-oss-120b", "anthropic": "claude-haiku-5-5"}.get(prov, "")
     enabled = bool(prov and model and (key or prov == "openai"))
     if any(b in model.lower() for b in BANNED):
         enabled = False
@@ -126,9 +126,11 @@ def generate(cycle, res, prev=None, proposals=()):
         else:
             base = {"groq": "https://api.groq.com/openai/v1"}.get(cfg["provider"], cfg["base"] or "http://localhost:11434/v1")
             hdr = {"Authorization": f"Bearer {cfg['key']}"} if cfg["key"] else {}
-            out = _post(base.rstrip("/") + "/chat/completions", hdr,
-                        {"model": cfg["model"], "temperature": 0.2, "max_tokens": 1500,
-                         "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]})
+            req = {"model": cfg["model"], "temperature": 0.2, "max_tokens": 4000,
+                   "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]}
+            if "gpt-oss" in cfg["model"]:
+                req["reasoning_effort"] = "low"   # модель міркує стисло, більше токенів лишається на текст
+            out = _post(base.rstrip("/") + "/chat/completions", hdr, req, timeout=60)
             text = out["choices"][0]["message"]["content"]
         text = text.strip()
         if not text:
