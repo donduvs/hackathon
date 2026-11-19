@@ -4,7 +4,7 @@
 
 *Integrity Management Dashboard: звіряє, як стан доброчесності бачать керівництво, особовий склад і факти.*
 
-Команда: «[НАЗВА КОМАНДИ — вписати]» · Завдання 3. Integrity Management Dashboard
+Команда: JurisPrudence · Завдання 3. Integrity Management Dashboard
 
 ## Проблема і користувач
 
@@ -106,6 +106,7 @@ uvicorn app.main:app --no-access-log
 - `docs/metodyka.md` — методика розрахунку індексу, рівнів, сигналів і рекомендацій з обґрунтуванням ваг.
 - `docs/arkhitektura.md` — схема компонентів і відповідність модулям із завдання.
 - `docs/api.md` — опис API для інтеграції.
+- `docs/mentory.md` — поради менторів, що ми врахували і чому.
 - `docs/zminy.md` — журнал змін за версіями: що змінено, у яких файлах і як відкотити.
 - `docs/posibnyk-korystuvacha.docx` — посібник користувача для всіх ролей.
 - `docs/img/` — знімки екрана й варіанти логотипа.
