@@ -17,7 +17,7 @@
 <table id="mine-t"><tr><th>Питання</th><th class="num">Ви</th><th class="num">Ваша категорія</th><th class="num">Заклад</th></tr></table>
 <p><button class="btn ghost small" id="forget" type="button">Видалити мої відповіді з цього пристрою</button></p></div>
 <div class="card" style="margin-top:18px"><h2>Що заклад робить за результатами</h2>
-<p class="muted">Найслабші напрями: {% for q in res.weak %}{{ E.QBY[q].title }}{{ '; ' if not loop.last }}{% endfor %}. За ними керівництво ухвалює рекомендації з відповідальними і строками; їх виконання перевіряється наступним опитуванням. Ваша чесна відповідь безпосередньо впливає на ці рішення.</p></div>
+<p class="muted">Найслабші напрями: {% for q in res.weak %}{{ E.QBY[q].title if loop.first else E.QBY[q].title[0]|lower ~ E.QBY[q].title[1:] }}{{ '; ' if not loop.last }}{% endfor %}. За ними керівництво ухвалює рекомендації з відповідальними і строками; їх виконання перевіряється наступним опитуванням. Ваша чесна відповідь безпосередньо впливає на ці рішення.</p></div>
 <script>
 (function () {
   var d; try { d = JSON.parse(localStorage.getItem('kamerton_my') || 'null'); } catch (e) {}

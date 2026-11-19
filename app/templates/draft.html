@@ -12,7 +12,7 @@
     <div>
       {% if d.status == 'approved' %}<span class="badge">Затверджено: {{ d.approved_by }}</span>
       {% else %}<span class="badge warn">{% if d.source == 'ai' %}Чернетка ШІ — потребує затвердження{% else %}Чернетка — потребує затвердження{% endif %}</span>{% endif %}
-      <span class="note">{{ {'ai': 'згенеровано ШІ', 'template': 'шаблонний текст', 'edited': 'ШІ, відредаговано людиною'}[d.source] }}{% if d.model %} · {{ d.model }}{% endif %} · {{ d.created }}</span>
+      <span class="note">{{ {'ai': 'згенеровано ШІ', 'template': 'шаблонний текст', 'edited': 'ШІ, відредаговано людиною'}[d.source] }}{% if d.model %} · {{ d.model }}{% endif %} · {{ d.created|d }}</span>
     </div>
     <form method="post" onsubmit="return confirm('Сформувати чернетку заново? Поточний текст буде замінено.')"><input type="hidden" name="action" value="generate"><button class="btn ghost small">Сформувати заново</button></form>
   </div>

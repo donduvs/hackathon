@@ -2,7 +2,7 @@
 {% block content %}
 {% if not cur %}<p>Немає завершених циклів оцінювання.</p>{% else %}
 <div class="row spread">
-  <div><h1>Стан системи доброчесності</h1><p class="sub">{{ settings.institution }} · {{ cur.title }} · завершено {{ cur.closed }}</p></div>
+  <div><h1>Стан системи доброчесності</h1><p class="sub">{{ settings.institution }} · {{ cur.title }} · завершено {{ cur.closed|d }}</p></div>
   <div class="row">
     <a class="btn ghost small" href="/draft/{{ cur.id }}">Аналітична записка{% if draft %} · {{ 'затверджено' if draft.status == 'approved' else 'чернетка' }}{% endif %}</a>
     <a class="btn ghost small" href="/report/{{ cur.id }}.docx">Звіт DOCX</a>
@@ -30,7 +30,7 @@
     <div class="legend">{% for t in E.LEVELS %}<span><i style="background:{{ LEVEL_COLORS[loop.index0] }}"></i>{{ loop.index }}. {{ t }}</span>{% endfor %}</div>
   </div>
   <div class="card">
-    <h2>Факти й охоплення</h2>
+    <h2>Чек-лист і охоплення</h2>
     <div class="kpi">{{ fmt(res.implementation, 0) }}<small> % впровадження інструментів</small></div>
     <p class="note">За чек-листом (Додаток Б): «повністю» = 1, «частково» = 0,5. До індексу не входить, показується поряд.</p>
     <table>
@@ -43,8 +43,11 @@
 <div class="grid g2" style="margin-top:18px">
   <div class="card">
     <h2>Сигнали для додаткового аналізу <span class="badge warn">{{ res.signals|length }}</span></h2>
-    {% for s in res.signals %}<div class="signal"><b>{{ s.title }}</b><br>{{ s.text }}{% if s.question != 'self_level' %} <a href="/question/{{ s.question }}?cycle={{ cur.id }}">Деталі →</a>{% endif %}</div>
-    {% else %}<div class="ok">Сигналів немає.</div>{% endfor %}
+    {% for s in res.signals %}<details class="sig">
+      <summary><span class="badge warn">{{ {'gap': 'розрив', 'self': 'самооцінка', 'checklist': 'чек-лист', 'objective': 'факти'}[s.type] }}</span> {{ s.title.split(': ', 1)[-1] if ': ' in s.title else s.title }}</summary>
+      <p>{{ s.text }}{% if s.question != 'self_level' %} <a href="/question/{{ s.question }}?cycle={{ cur.id }}">Деталі →</a>{% endif %}</p>
+    </details>{% else %}<p class="muted">Сигналів немає.</p>{% endfor %}
+    <p class="note">Сигнал — не висновок про порушення, а підстава для додаткового аналізу. Натисніть, щоб розгорнути правило.</p>
   </div>
   <div class="card">
     <h2>Динаміка</h2>

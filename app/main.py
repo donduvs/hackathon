@@ -4,9 +4,11 @@
 """
 import hashlib
 import json
+import re
 import os
 import secrets
 import uuid
+from datetime import timedelta
 from pathlib import Path
 
 from starlette.applications import Starlette
@@ -35,6 +37,36 @@ ROLES = {
 REC_STATUS = {"proposed": "Запропоновано", "accepted": "Прийнято", "rejected": "Відхилено",
               "in_progress": "Виконується", "done": "Виконано"}
 T.globals.update(ROLES=ROLES, REC_STATUS=REC_STATUS)
+
+
+def ua_date(v):
+    """2025-06-02 → 02.06.2025; 2025-06-02 10:15 → 02.06.2025 10:15 (український формат)."""
+    if not v:
+        return ""
+    s = str(v)
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})(.*)", s)
+    return f"{m.group(3)}.{m.group(2)}.{m.group(1)}{m.group(4).replace(' ', chr(160), 1)}" if m else s
+
+
+def parse_date(v):
+    """дд.мм.рррр або рррр-мм-дд → рррр-мм-дд; порожнє або неправильне → ''."""
+    v = (v or "").strip()
+    m = re.match(r"^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})$", v)
+    if m:
+        d, mo, y = map(int, m.groups())
+    else:
+        m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", v)
+        if not m:
+            return ""
+        y, mo, d = map(int, m.groups())
+    try:
+        from datetime import date as _d
+        return _d(y, mo, d).isoformat()
+    except ValueError:
+        return ""
+
+
+T.filters["d"] = ua_date
 
 
 # ---------------------------------------------------------------- допоміжне
@@ -173,7 +205,8 @@ async def methodology(request):
     con = db.connect()
     cur, cl = pick_cycle(request, con)
     res = result(con, cur["id"]) if cur else None
-    return render(request, "methodology.html", cur=cur, res=res, Q=E.Q, CHECKLIST=E.CHECKLIST, MEASURES=E.MEASURES)
+    return render(request, "methodology.html", cur=cur, res=res, Q=E.Q, CHECKLIST=E.CHECKLIST, MEASURES=E.MEASURES,
+                  IND=E.INDICATORS)
 
 
 # ---------------------------------------------------------------- уповноважена особа
@@ -191,8 +224,9 @@ async def cycles_page(request):
         printable = con.execute("SELECT COUNT(*) FROM demo_codes WHERE cycle_id=?", (c["id"],)).fetchone()[0]
         rows.append((c, cov, printable))
     active = any(c["status"] == "active" for c, _, _ in rows)
-    from datetime import date
-    return render(request, "cycles.html", rows=rows, active=active, next_year=max(c["year"] for c, _, _ in rows) + 1 if rows else date.today().year,
+    # активний цикл — першим, далі завершені від новіших до старіших
+    rows.sort(key=lambda r: (r[0]["status"] != "active", -r[0]["year"]))
+    return render(request, "cycles.html", rows=rows, active=active, next_year=max(c["year"] for c, _, _ in rows) + 1 if rows else db.today().year,
                   survey_qr=codes_pdf.qr_svg(str(request.base_url) + "survey", 200), base=str(request.base_url))
 
 
@@ -330,7 +364,8 @@ async def recommendations(request):
         r["year"] = next(c["year"] for c in cycles(con) if c["id"] == r["cycle_id"])
     from datetime import date
     return render(request, "recommendations.html", cur=cur, res=res, proposals=proposals, existing=existing,
-                  today=date.today().isoformat(),
+                  today=db.today().isoformat(),
+                  default_due=ua_date((db.today() + timedelta(days=90)).isoformat()),
                   measures={m["id"]: m for m in E.MEASURES["measures"]})
 
 
@@ -346,7 +381,7 @@ async def rec_decide(request):
                        decided_by, decision_note, result_note) VALUES (?,?,?,?,?,?,?,?,?,'')""",
                     (int(f["cycle_id"]), f["question_id"], f["measure_id"], f["reason"],
                      "accepted" if action == "accept" else "rejected",
-                     f.get("responsible", ""), f.get("due", ""), ROLES["kerivnyk"], f.get("note", "")))
+                     f.get("responsible", ""), parse_date(f.get("due", "")), ROLES["kerivnyk"], f.get("note", "")))
         db.log(con, ROLES["kerivnyk"], "Рекомендацію " + ("прийнято" if action == "accept" else "відхилено"),
                f"{f['measure_id']} ({f['question_id']})" + (f": {f['note'].strip()}" if (f.get("note") or "").strip() else ""))
     return go("/recommendations", request, "Рішення збережено.")
@@ -525,7 +560,7 @@ def _save_indicators(con, cid, values, source, who):
         con.execute("""INSERT INTO indicators (cycle_id, ind_id, value, source, entered_by, ts) VALUES (?,?,?,?,?,?)
                        ON CONFLICT(cycle_id, ind_id) DO UPDATE SET value=excluded.value, source=excluded.source,
                        entered_by=excluded.entered_by, ts=excluded.ts""",
-                    (cid, k, v, source, who, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                    (cid, k, v, source, who, db.now()))
         saved.append(k)
     return saved
 
@@ -642,8 +677,7 @@ async def draft_page(request):
     if request.method == "POST":
         f = await request.form()
         act = f.get("action")
-        from datetime import datetime
-        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        now = db.now()
         with db.tx() as con2:
             if act == "generate":
                 c2, res, prev, props = _draft_ctx(con2, cid)
@@ -675,13 +709,15 @@ async def draft_page(request):
 # ---------------------------------------------------------------- тижневе зведення
 def digest_data(con):
     from datetime import date, timedelta
-    today = date.today()
+    today = db.today()
     soon = (today + timedelta(days=7)).isoformat()
     open_ = [dict(r) for r in con.execute("""SELECT * FROM recommendations WHERE status IN ('accepted','in_progress')
                                                ORDER BY due""")]
     meas = {m["id"]: m for m in E.MEASURES["measures"]}
+    years = {c["id"]: c["year"] for c in con.execute("SELECT id, year FROM cycles")}
     for r in open_:
         r["measure"] = meas.get(r["measure_id"], {}).get("title", r["measure_id"])
+        r["year"] = years.get(r["cycle_id"])
     week_ago = (today - timedelta(days=7)).isoformat()
     changes = [dict(r) for r in con.execute("""SELECT * FROM audit WHERE ts>=? AND action IN
         ('Оновлено статус рекомендації','Рекомендацію прийнято','Рекомендацію відхилено') ORDER BY id DESC""", (week_ago,))]

@@ -11,14 +11,14 @@
     <p class="note" style="margin:6px 0 10px">Напрям: <a href="/question/{{ p.question }}?cycle={{ cur.id }}">{{ E.QBY[p.question].report_no }} {{ E.QBY[p.question].title }}</a> (рівень {{ fmt(res.questions[p.question].level) }}).
       Підстава: {{ p.reason }}.</p>
     {% if role == 'kerivnyk' %}
-    <form method="post" action="/recommendations/decide" class="row">
+    <form method="post" action="/recommendations/decide" class="decide">
       <input type="hidden" name="cycle_id" value="{{ cur.id }}"><input type="hidden" name="question_id" value="{{ p.question }}">
       <input type="hidden" name="measure_id" value="{{ p.measure.id }}"><input type="hidden" name="reason" value="{{ p.reason }}">
-      <input type="text" name="responsible" value="{{ p.measure.responsible }}" size="34" aria-label="Відповідальний">
-      <input type="date" name="due" value="{{ cur.year + 1 }}-03-01" aria-label="Строк">
-      <input type="text" name="note" placeholder="Коментар (обов'язковий, якщо відхиляєте)" size="30" aria-label="Коментар">
-      <button class="btn small" name="action" value="accept">Прийняти</button>
-      <button class="btn ghost small" name="action" value="reject">Відхилити</button>
+      <label>Відповідальний<input type="text" name="responsible" value="{{ p.measure.responsible }}"></label>
+      <label>Строк<input type="text" name="due" value="{{ default_due }}" placeholder="дд.мм.рррр" inputmode="numeric" pattern="\d{1,2}\.\d{1,2}\.\d{4}"></label>
+      <label>Коментар<input type="text" name="note" placeholder="обов'язковий, якщо відхиляєте"></label>
+      <div class="acts"><button class="btn small" name="action" value="accept">Прийняти</button>
+      <button class="btn ghost small" name="action" value="reject">Відхилити</button></div>
     </form>
     {% else %}<p class="note">Рішення ухвалює керівник.</p>{% endif %}
   </div>
@@ -33,7 +33,7 @@
     <tr>
       <td>{{ r.year }}</td>
       <td>{{ measures[r.measure_id].title }}<br><span class="note">{{ E.QBY[r.question_id].report_no }} {{ E.QBY[r.question_id].title }}. {{ r.result_note or r.decision_note }}</span></td>
-      <td>{{ r.responsible or '—' }}<br><span class="note">{{ r.due or '' }}</span></td>
+      <td>{{ r.responsible or '—' }}<br><span class="note">{{ r.due|d }}</span></td>
       <td><span class="badge {{ 'grey' if r.status == 'rejected' else ('warn' if r.status in ('accepted', 'in_progress') else '') }}">{{ REC_STATUS[r.status] }}</span>
         {% if r.status in ('accepted', 'in_progress') and r.due and r.due < today %}<span class="badge warn">прострочено</span>{% endif %}
         {% if role in ('vykonavets', 'upov') and r.status in ('accepted', 'in_progress') %}

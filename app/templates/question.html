@@ -39,7 +39,7 @@
       Статус у {{ cur.year }}: {% set st = res.checklist.get(it.no) %}<span class="badge {{ 'warn' if st == 'todo' else ('' if st == 'full' else 'grey') }}">{{ {'full': 'Впроваджено повністю', 'partial': 'Впроваджено частково', 'todo': 'Підлягає впровадженню'}.get(st, 'немає даних') }}</span></p>
     {% else %}<p class="muted">Для цього питання в чек-листі немає відповідного пункту.</p>{% endfor %}</div>
   <div class="card"><h2>Рекомендації за цим напрямом</h2>
-    {% for rc in recs %}<p><span class="badge {{ 'grey' if rc.status == 'rejected' else '' }}">{{ REC_STATUS[rc.status] }}</span> {{ measures[rc.measure_id].title }}<br><span class="note">Цикл {% for c in cl if c.id == rc.cycle_id %}{{ c.year }}{% else %}{{ rc.cycle_id }}{% endfor %} · {{ rc.responsible or '—' }} · строк {{ rc.due or '—' }}</span></p>
+    {% for rc in recs %}<p><span class="badge {{ 'grey' if rc.status == 'rejected' else '' }}">{{ REC_STATUS[rc.status] }}</span> {{ measures[rc.measure_id].title }}<br><span class="note">Цикл {% for c in cl if c.id == rc.cycle_id %}{{ c.year }}{% else %}{{ rc.cycle_id }}{% endfor %} · {{ rc.responsible or '—' }} · строк {{ rc.due|d or "—" }}</span></p>
     {% else %}<p class="muted">Рекомендацій ще не було.</p>{% endfor %}</div>
 </div>
 {% if inds %}<div class="card" style="margin-top:18px"><h2>Об'єктивні показники</h2>

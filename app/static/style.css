@@ -22,7 +22,7 @@ header.top { background: var(--surface); border-bottom: 1px solid var(--line); p
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
 .top .wrap { display: flex; align-items: center; gap: 22px; min-height: 60px; flex-wrap: wrap; }
 .brand { font-weight: 700; letter-spacing: -.01em; color: var(--ink); display: flex; align-items: center; gap: 10px; }
-.brand .logo { width: 26px; height: 26px; display: block; }
+.brand .logo { width: 30px; height: 30px; display: block; }
 nav { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
 nav a { color: var(--muted); padding: 7px 12px; border-radius: 10px; font-weight: 500; }
 nav a.on, nav a:hover { background: var(--accent-soft); color: var(--accent); text-decoration: none; }
@@ -110,3 +110,55 @@ code { background: #ECEAE4; padding: 1px 6px; border-radius: 6px; font-size: 13p
 .q legend + * { clear: both; }
 @media (max-width: 760px) { .q { padding: 14px 12px; } .opt { padding: 8px 4px; } }
 [hidden] { display: none !important; }
+
+/* форма рішення щодо рекомендації */
+.decide { display: grid; grid-template-columns: 2fr 120px 2fr auto; gap: 10px; align-items: end; }
+.decide label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+.decide input { width: 100%; box-sizing: border-box; }
+.decide .acts { display: flex; gap: 8px; }
+@media (max-width: 760px) { .decide { grid-template-columns: 1fr; } }
+
+/* бренд із підзаголовком */
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand span { display: flex; flex-direction: column; line-height: 1.15; }
+.brand b { font-size: 17px; color: var(--ink); }
+.brand small { font-size: 11px; color: var(--muted); font-weight: 400; }
+/* мобільне меню */
+.menu-btn { display: none; margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 10px;
+  font-size: 20px; line-height: 1; padding: 6px 10px; color: var(--ink); cursor: pointer; }
+@media (max-width: 900px) {
+  header.top .wrap { flex-wrap: wrap; }
+  .menu-btn { display: block; }
+  header.top nav, header.top .who { display: none; width: 100%; }
+  header.top.open nav { display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 8px 0; }
+  header.top.open .who { display: flex; padding-bottom: 10px; }
+  header.top nav a { padding: 10px 12px; }
+}
+
+/* цикли: кроки організатора */
+.card.cycle.active { border: 1.5px solid var(--accent); }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; padding: 14px; background: var(--accent-soft); border-radius: 12px; }
+.stp { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.stp .n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+.stp .btn { margin-top: 6px; }
+@media (max-width: 900px) { .steps { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .steps { grid-template-columns: 1fr; } }
+
+/* компактні сигнали */
+details.sig { border-left: 3px solid var(--warn); background: var(--warn-soft); border-radius: 0 10px 10px 0; padding: 8px 12px; margin-bottom: 8px; }
+details.sig summary { color: var(--ink); font-weight: 600; font-size: 14px; list-style: none; }
+details.sig summary::-webkit-details-marker { display: none; }
+details.sig summary::after { content: " ▾"; color: var(--warn); }
+details.sig[open] summary::after { content: " ▴"; }
+details.sig p { margin: 8px 0 2px; font-size: 14px; }
+/* щільніша навігація, щоб меню вміщалося в один рядок */
+.top .wrap { gap: 14px; }
+nav { gap: 2px; flex-wrap: nowrap; }
+nav a { padding: 7px 9px; white-space: nowrap; font-size: 14.5px; }
+.who .badge { white-space: nowrap; }
+@media (max-width: 1240px) { .brand small { display: none; } }
+@media (max-width: 900px) {
+  .brand small { display: block; }
+  header.top nav { order: 3; }
+  header.top .who { order: 4; }
+}

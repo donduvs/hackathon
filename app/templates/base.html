@@ -3,15 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Камертон — панель доброчесності{% endblock %}</title>
+<title>{% block title %}Камертон · система оцінювання зрілості доброчесності{% endblock %}</title>
 <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-{% if settings.demo_mode %}<div class="demo-bar">Демонстраційна версія: лише синтетичні дані. {{ settings.institution }} — вигаданий заклад.</div>{% endif %}
+{% if settings.demo_mode %}<div class="demo-bar">Демонстраційна версія · синтетичні дані вигаданого закладу</div>{% endif %}
 <header class="top"><div class="wrap">
-  <a class="brand" href="/"><img class="logo" src="/static/logo.svg" alt="" width="26" height="26">Камертон</a>
+  <a class="brand" href="/"><img class="logo" src="/static/logo.svg" alt="" width="30" height="30"><span><b>Камертон</b><small>система оцінювання зрілості доброчесності</small></span></a>
   {% set p = request.url.path %}
+  <button class="menu-btn" type="button" aria-label="Меню" aria-expanded="false" onclick="var h=document.querySelector('header.top');h.classList.toggle('open');this.setAttribute('aria-expanded',h.classList.contains('open'))">☰</button>
   <nav>
   {% if role in ('kerivnyk', 'upov', 'vykonavets') %}
     <a href="/dashboard" class="{{ 'on' if p.startswith('/dashboard') or p.startswith('/question') }}">Панель</a>

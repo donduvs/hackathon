@@ -90,7 +90,7 @@ def facts(cycle, res, prev=None, proposals=()):
         "впровадження інструментів за чек-листом, %": E.fmt(res["implementation"], 0),
         "запропоновані заходи (код — назва — на яке питання спрямований; не змінюй цієї відповідності)": [
             f"{p['measure']['id']} — {p['measure']['title']} — питання {E.QBY[p['question']]['report_no']} {E.QBY[p['question']]['title']}"
-            for p in proposals][:6],
+            for p in proposals],
     }
 
 

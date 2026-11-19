@@ -1,6 +1,8 @@
 <img src="app/static/logo.svg" width="72" alt="Логотип Камертона">
 
-# Камертон
+# Камертон · система оцінювання зрілості доброчесності
+
+*Integrity Management Dashboard: звіряє, як стан доброчесності бачать керівництво, особовий склад і факти.*
 
 Команда: «[НАЗВА КОМАНДИ — вписати]» · Завдання 3. Integrity Management Dashboard
 
@@ -104,13 +106,14 @@ uvicorn app.main:app --no-access-log
 - `docs/metodyka.md` — методика розрахунку індексу, рівнів, сигналів і рекомендацій з обґрунтуванням ваг.
 - `docs/arkhitektura.md` — схема компонентів і відповідність модулям із завдання.
 - `docs/api.md` — опис API для інтеграції.
+- `docs/zminy.md` — журнал змін за версіями: що змінено, у яких файлах і як відкотити.
 - `docs/posibnyk-korystuvacha.docx` — посібник користувача для всіх ролей.
 - `docs/img/` — знімки екрана й варіанти логотипа.
 
 ## Що використали
 
 - [Starlette](https://www.starlette.io/) (BSD-3), [uvicorn](https://www.uvicorn.org/) (BSD-3), [Jinja2](https://jinja.palletsprojects.com/) (BSD-3), [itsdangerous](https://itsdangerous.palletsprojects.com/) (BSD-3), [python-multipart](https://github.com/Kludex/python-multipart) (Apache-2.0), [python-docx](https://github.com/python-openxml/python-docx) (MIT), [ReportLab](https://www.reportlab.com/) (BSD), [openpyxl](https://openpyxl.readthedocs.io/) (MIT).
-- Модель Llama 3.3 (Meta) через Groq — для чернетки аналітичної записки в демо; працює лише на синтетичних даних.
+- Відкрита модель OpenAI GPT-OSS 120B через Groq — для чернетки аналітичної записки в демо; працює лише на синтетичних даних.
 - Шрифти [DejaVu](https://dejavu-fonts.github.io/) — ліцензія в `app/fonts/LICENSE-DejaVu.txt`.
 - Анкети, чек-лист, форма звіту й перелік заходів — з матеріалів завдання 3 (додатки А–Д).
 - Модель ШІ Claude (Anthropic) — допомога в аналізі завдання й написанні коду, деталі в `docs/ai.md`. Усі дані в репозиторії синтетичні.

@@ -116,9 +116,28 @@ def init(drop=False):
 
 def log(con, role, action, details=""):
     con.execute("INSERT INTO audit (ts, role, action, details) VALUES (?,?,?,?)",
-                (datetime.now().strftime("%Y-%m-%d %H:%M"), role, action, details))
+                (now(), role, action, details))
 
 
 def responses(con, cycle_id):
     rows = con.execute("SELECT grp, answers FROM responses WHERE cycle_id=?", (cycle_id,)).fetchall()
     return [(r["grp"], json.loads(r["answers"])) for r in rows]
+
+
+def kyiv():
+    """Поточний час за Києвом (сервер працює за UTC)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    try:
+        return datetime.now(ZoneInfo("Europe/Kyiv"))
+    except Exception:  # немає бази часових поясів — запасний варіант UTC+2
+        from datetime import timedelta, timezone
+        return datetime.now(timezone(timedelta(hours=2)))
+
+
+def now():
+    return kyiv().strftime("%Y-%m-%d %H:%M")
+
+
+def today():
+    return kyiv().date()

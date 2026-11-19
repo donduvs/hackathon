@@ -11,7 +11,7 @@
 {% for i in IND.indicators %}{% set st = state[i.id] %}{% set r = rows.get(i.id) %}
 <tr>
   <td>{{ i.title }}{% if i.note %}<br><span class="note">{{ i.note }}</span>{% endif %}</td>
-  <td class="note">{{ i.source }}{% if r %}<br>внесено: {{ r.source }}, {{ r.ts }}{% endif %}</td>
+  <td class="note">{{ i.source }}{% if r %}<br>внесено: {{ r.source }}, {{ r.ts|d }}{% endif %}</td>
   <td class="num">{% if i.auto or role != 'upov' %}{{ fmt(st.value) }}{% else %}<input type="text" name="ind_{{ i.id }}" value="{{ fmt(st.value) if st.value is not none else '' }}" size="6" inputmode="decimal" aria-label="{{ i.title }}">{% endif %} <span class="note">{{ i.unit }}</span></td>
   <td class="num">{{ fmt(i.threshold) }}</td>
   <td>{% if i.question %}<a href="/question/{{ i.question }}?cycle={{ c.id }}">{{ E.QBY[i.question].report_no }} {{ E.QBY[i.question].title }}</a><br><span class="note">рівень за анкетами: {{ fmt(st.level) }}</span>{% else %}<span class="note">загальна достовірність</span>{% endif %}</td>
