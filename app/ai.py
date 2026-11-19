@@ -17,6 +17,7 @@
 import json
 import os
 import re
+import urllib.error
 import urllib.request
 
 from . import engine as E
@@ -100,7 +101,10 @@ def template(cycle, res, prev=None, proposals=()):
 
 
 def _post(url, headers, body, timeout=40):
-    req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json", **headers})
+    # Власний User-Agent: деякі сервіси (зокрема Groq за Cloudflare) відхиляють стандартний «Python-urllib».
+    req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json", "Accept": "application/json",
+                                          "User-Agent": "integrity-dashboard/0.5", **headers})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode())
 
@@ -130,8 +134,15 @@ def generate(cycle, res, prev=None, proposals=()):
         if not text:
             raise ValueError("порожня відповідь")
     except Exception as e:  # будь-який збій — запасний шаблон
+        detail = type(e).__name__
+        if isinstance(e, urllib.error.HTTPError):
+            try:
+                body = e.read().decode(errors="replace")[:160]
+            except Exception:
+                body = ""
+            detail = f"HTTP {e.code}" + (f": {body}" if body else "")
         return (template(cycle, res, prev, proposals), "template", None,
-                f"Сервіс ШІ недоступний ({type(e).__name__}): використано шаблонний текст.")
+                f"Сервіс ШІ недоступний ({detail}): використано шаблонний текст.")
     return text, "ai", f"{cfg['provider']}: {cfg['model']}", check_numbers(text, data)
 
 
