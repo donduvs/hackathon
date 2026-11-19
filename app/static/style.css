@@ -109,3 +109,4 @@ code { background: #ECEAE4; padding: 1px 6px; border-radius: 6px; font-size: 13p
 .q legend { float: left; width: 100%; padding: 0; margin-bottom: 10px; }
 .q legend + * { clear: both; }
 @media (max-width: 760px) { .q { padding: 14px 12px; } .opt { padding: 8px 4px; } }
+[hidden] { display: none !important; }

@@ -85,6 +85,6 @@ def sheet(codes, base_url, institution, cycle_title, groups):
         c.drawString(tx, y0 + 8 * mm, host.split("://")[-1] + "/survey")
         c.setFillColorRGB(0.42, 0.44, 0.5)
         c.setFont("DejaVu", 6)
-        c.drawString(tx, y0 + 3.5 * mm, "Код одноразовий, не пов'язаний з вами.")
+        c.drawString(tx, y0 + 3.5 * mm, "Збережіть: потім за цим QR — результати.")
     c.save()
     return buf.getvalue()

@@ -27,8 +27,23 @@
 | `respondents` | кількість відповідей за групами; для груп менше 5 осіб — «< 5» |
 | `methodology` | посилання на опис методики |
 
-Приклад: `https://camerton.onrender.com/api/cycles/2/summary`
+Приклад: `https://integrity-demo.onrender.com/api/cycles/2/summary`
 
 ## Звіти
 
 `GET /report/{id}.docx` і `GET /report/{id}.pdf` — звіт за формою Додатка Г (потрібен вхід у ролі керівника, уповноваженої особи або виконавця).
+
+## POST /api/indicators
+
+Прийом об'єктивних показників від інших систем закладу без участі людини. Потрібен ключ у заголовку `Authorization: Bearer <IMD_API_TOKEN>`; якщо змінну `IMD_API_TOKEN` не задано, прийом вимкнено.
+
+```json
+{"year": 2026, "source": "Moodle",
+ "indicators": [{"id": "training_coverage", "value": 72}]}
+```
+
+Відповідь: `{"saved": ["training_coverage"], "ignored": []}`. Коди показників — у `data/indicators.json` і в шаблоні `/indicators/template.csv`. Кожне надходження записується в журнал дій.
+
+## GET /api/digest
+
+Тижневе зведення щодо виконання рекомендацій: прострочені, зі строком у найближчі 7 днів, у роботі, кількість змін за тиждень. Підходить для щотижневої розсилки в системі документообігу.

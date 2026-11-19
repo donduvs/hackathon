@@ -31,6 +31,8 @@ Q = load("questionnaires.json")
 CHECKLIST = load("checklist.json")
 MEASURES = load("measures.json")
 SETTINGS = load("settings.json")
+INDICATORS = load("indicators.json")
+IND_BY = {i["id"]: i for i in INDICATORS["indicators"]}
 
 LEVELS = [lv["title"] for lv in Q["levels"]]
 QUESTIONS = [q for q in Q["questions"] if q["component"]]          # без самооцінки
@@ -68,7 +70,7 @@ def _combine(values_weights):
     return round(sum(v * w for v, w in vals) / s, 4)
 
 
-def compute(responses, checklist=None, settings=None):
+def compute(responses, checklist=None, settings=None, indicators=None):
     """responses: список (група, {питання: рівень}). Повертає повну картину циклу."""
     st = settings or SETTINGS
     w = st["weights"]
@@ -186,6 +188,36 @@ def compute(responses, checklist=None, settings=None):
     else:
         res["implementation"] = None
 
+    # ---------- об'єктивні показники (правило R4) ----------
+    res["indicators"] = []
+    lmin = INDICATORS["level_at_least"]
+    for ind in INDICATORS["indicators"]:
+        val = (indicators or {}).get(ind["id"])
+        row = {"id": ind["id"], "value": val, "state": None}
+        lv = res["questions"][ind["question"]]["level"] if ind["question"] else None
+        row["level"] = lv
+        if val is not None:
+            below = val < ind["threshold"]
+            if ind["question"] is None:
+                row["state"] = "low" if below else "ok"
+            elif lv is None:
+                row["state"] = None
+            elif below and lv >= lmin:
+                row["state"] = "conflict"
+                q = QBY[ind["question"]]
+                res["signals"].append({
+                    "type": "objective", "question": ind["question"], "indicator": ind["id"],
+                    "title": f"Розбіжність з об'єктивним показником: {q['report_no']} {q['title']}",
+                    "text": f"Респонденти оцінюють рівень як {fmt(lv)} ({level_name(lv)}), але показник "
+                            f"«{ind['title']}» становить {fmt(val)} {ind['unit']} при порозі {fmt(ind['threshold'])}. "
+                            f"Правило: значення нижче порогу при рівні ≥ {fmt(lmin)}.",
+                    "rule": "R4"})
+            elif not below and lv < lmin:
+                row["state"] = "better"      # факти кращі за оцінки людей
+            else:
+                row["state"] = "consistent"
+        res["indicators"].append(row)
+
     # сильні та слабкі сторони (за рівнем питання)
     ranked = sorted([q for q in QUESTIONS if res["questions"][q["id"]]["level"] is not None],
                     key=lambda q: res["questions"][q["id"]]["level"])
@@ -249,6 +281,8 @@ def describe(qid, res, checklist_items=None):
             out.append(("D2", s["text"].split(" Правило")[0] + " Можлива схильність до соціально бажаних відповідей — рекомендовано додатковий аналіз."))
         if s["type"] == "checklist":
             out.append(("D3", s["text"].split(" Правило")[0] + " Потрібна перевірка фактичного стану."))
+        if s["type"] == "objective":
+            out.append(("D6", s["text"].split(" Правило")[0] + " Оцінки респондентів не підтверджуються фактами."))
     if row["level"] is not None and row["level"] < SETTINGS["thresholds"]["weak_question_level"]:
         out.append(("D4", f"Загальний рівень питання — {fmt(row['level'])} ({level_name(row['level'])}), "
                           f"нижче за «Визначений»: напрям потребує першочергової уваги."))
@@ -268,9 +302,10 @@ def propose(res):
         if lv is not None and lv < th["weak_question_level"]:
             reasons.setdefault(q["id"], []).append(f"рівень {fmt(lv)} нижче «Визначеного» (правило P1)")
     for s in res["signals"]:
-        if s["type"] in ("gap", "checklist"):
+        if s["type"] in ("gap", "checklist", "objective"):
             reasons.setdefault(s["question"], []).append(
-                {"gap": "розрив між групами", "checklist": "розбіжність із чек-листом"}[s["type"]] + " (правило P2)")
+                {"gap": "розрив між групами", "checklist": "розбіжність із чек-листом",
+                 "objective": "розбіжність з об'єктивним показником"}[s["type"]] + " (правило P2)")
     out = []
     for qid, why in reasons.items():
         for m in MEASURES["measures"]:

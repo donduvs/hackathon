@@ -1,13 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>{{ E.Q.questionnaires[qn].title }}</h1>
-<p class="sub">Категорія: {{ E.GROUPS[s.grp].title }}. Оберіть один варіант, який найбільше підходить. Усі питання обов'язкові.</p>
+{% set transitions = {'culture': 'Спочатку — кілька питань про загальну атмосферу в закладі.', 'system': 'Далі — про те, як організовано роботу із запобігання корупції.', 'accountability': 'Тепер — про те, як у закладі реагують на ризики й порушення. Нагадуємо: відповіді анонімні, ніхто не знає, хто ви.', None: 'Останнє питання — ваша загальна оцінка.'} %}
+<div id="intro" class="card" style="max-width:720px">
+  <h1>{{ E.Q.questionnaires[qn].title }}</h1>
+  <p class="sub" style="margin-bottom:12px">Категорія: {{ E.GROUPS[s.grp].title }}</p>
+  <p><b>Навіщо це опитування.</b> Заклад щороку оцінює, наскільки працює його система доброчесності: що вже добре, а що потребує змін. Результати не використовуються для оцінки окремих людей чи командирів.</p>
+  <p><b>Чому ваша відповідь анонімна.</b> Код не пов'язаний з вами, відповіді зберігаються окремо від коду, система не записує ні час, ні адресу пристрою. Результати показуються лише для груп від {{ settings.thresholds.min_group_size }} осіб.</p>
+  <p><b>Що буде далі.</b> Після завершення опитування за тим самим QR-кодом з вашої картки відкриються узагальнені результати закладу й рішення, ухвалені за ними. Збережіть картку.</p>
+  <p class="muted">{{ qs|length }} питань, близько 5–7 хвилин. У кожному питанні оберіть варіант, який найкраще описує ситуацію в закладі зараз.</p>
+  <button type="button" class="btn js-only" id="start" hidden>Почати</button>
+</div>
 {% if error %}<div class="signal">{{ error }}</div>{% endif %}
-<form method="post">
-{% set sec = namespace(c=None) %}
+<form method="post" id="sf">
+<div class="progress js-only" hidden><span id="bar" style="width:0"></span></div>
+<p class="note js-only" id="count" hidden></p>
+{% set sec = namespace(c='start') %}
 {% for q in qs %}
+  <div class="step">
   {% if q.component != sec.c %}{% set sec.c = q.component %}
     <h2 style="margin-top:22px">{% if q.component %}{% for c in E.COMPONENTS if c.id == q.component %}Розділ {{ c.report_no }}. {{ c.title }}{% endfor %}{% else %}Розділ 4. Загальний рівень зрілості{% endif %}</h2>
+    <p class="muted">{{ transitions[q.component] }}</p>
   {% endif %}
   <fieldset class="q">
     <legend>{{ q.text[qn] }}</legend>
@@ -15,8 +27,43 @@
     <label class="opt"><input type="radio" name="{{ q.id }}" value="{{ loop.index }}" required {{ 'checked' if given.get(q.id) == loop.index|string }}><span>{{ o }}</span></label>
     {% endfor %}
   </fieldset>
+  </div>
 {% endfor %}
-<button class="btn">Надіслати відповіді</button>
+<div class="row" id="nav">
+  <button type="button" class="btn ghost js-only" id="back" hidden>← Назад</button>
+  <button type="button" class="btn js-only" id="next" hidden disabled>Далі →</button>
+  <button class="btn" id="send">Надіслати відповіді</button>
+</div>
 <p class="note">Після надсилання код стане недійсним. Змінити відповіді буде неможливо — так гарантується, що з одного коду надходить лише одна анкета.</p>
 </form>
+<script>
+(function () {
+  var steps = [].slice.call(document.querySelectorAll('.step')), i = 0;
+  var form = document.getElementById('sf'), intro = document.getElementById('intro');
+  var next = document.getElementById('next'), back = document.getElementById('back'), send = document.getElementById('send');
+  [].forEach.call(document.querySelectorAll('.js-only'), function (e) { e.hidden = false; });
+  {% if not error %}form.hidden = true;{% else %}intro.hidden = true;{% endif %}
+  function answered(k) { return !!steps[k].querySelector('input:checked'); }
+  function show() {
+    steps.forEach(function (s, k) { s.hidden = k !== i; });
+    document.getElementById('bar').style.width = Math.round(100 * i / steps.length) + '%';
+    document.getElementById('count').textContent = 'Питання ' + (i + 1) + ' з ' + steps.length;
+    back.hidden = i === 0; var last = i === steps.length - 1;
+    next.hidden = last; send.hidden = !last; next.disabled = !answered(i); send.disabled = !answered(i);
+    window.scrollTo(0, 0);
+  }
+  document.getElementById('start').onclick = function () { intro.hidden = true; form.hidden = false; show(); };
+  next.onclick = function () { if (answered(i)) { i++; show(); } };
+  back.onclick = function () { i--; show(); };
+  form.addEventListener('change', function () { next.disabled = !answered(i); send.disabled = !answered(i);
+    if (i < steps.length - 1 && answered(i)) setTimeout(function () { if (answered(i)) { i++; show(); } }, 350); });
+  form.addEventListener('submit', function () {
+    // Копія відповідей лишається ЛИШЕ на цьому пристрої: для порівняння «я і заклад» після завершення циклу.
+    var a = {}; [].forEach.call(form.querySelectorAll('input:checked'), function (x) { a[x.name] = +x.value; });
+    try { localStorage.setItem('kamerton_my', JSON.stringify({cycle: {{ s.cycle }}, grp: '{{ s.grp }}', answers: a})); } catch (e) {}
+  });
+  {% if error %}i = steps.findIndex(function (s, k) { return !answered(k); }); if (i < 0) i = 0;{% endif %}
+  show();
+})();
+</script>
 {% endblock %}

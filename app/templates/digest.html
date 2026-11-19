@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Тижневе зведення</h1>
+<p class="sub">Стан виконання прийнятих рекомендацій на {{ d.date }}. Те саме зведення доступне іншим системам через <code>/api/digest</code> (наприклад, для щотижневої розсилки в системі документообігу).</p>
+<div class="grid g3">
+  <div class="card"><h2>Прострочено <span class="badge warn">{{ d.overdue|length }}</span></h2>
+    {% for r in d.overdue %}<p><b>{{ r.measure_id }}</b> {{ r.measure }}<br><span class="note">{{ r.responsible or '—' }} · строк {{ r.due }}</span></p>{% else %}<p class="muted">Немає.</p>{% endfor %}</div>
+  <div class="card"><h2>Строк за 7 днів <span class="badge">{{ d.due_soon|length }}</span></h2>
+    {% for r in d.due_soon %}<p><b>{{ r.measure_id }}</b> {{ r.measure }}<br><span class="note">{{ r.responsible or '—' }} · строк {{ r.due }}</span></p>{% else %}<p class="muted">Немає.</p>{% endfor %}</div>
+  <div class="card"><h2>У роботі <span class="badge grey">{{ d.in_work|length }}</span></h2>
+    {% for r in d.in_work %}<p><b>{{ r.measure_id }}</b> {{ r.measure }}<br><span class="note">{{ r.responsible or '—' }} · строк {{ r.due or '—' }}</span></p>{% else %}<p class="muted">Немає.</p>{% endfor %}</div>
+</div>
+<div class="card" style="margin-top:18px"><h2>Зміни за тиждень</h2>
+{% for a in d.changes %}<p><span class="note">{{ a.ts }} · {{ a.role }}</span><br>{{ a.action }}: {{ a.details }}</p>{% else %}<p class="muted">Змін не було.</p>{% endfor %}</div>
+{% endblock %}

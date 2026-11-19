@@ -16,7 +16,8 @@
   {% if role in ('kerivnyk', 'upov', 'vykonavets') %}
     <a href="/dashboard" class="{{ 'on' if p.startswith('/dashboard') or p.startswith('/question') }}">Панель</a>
     <a href="/recommendations" class="{{ 'on' if p.startswith('/recommendations') }}">Рекомендації</a>
-    {% if role in ('upov', 'kerivnyk') %}<a href="/cycles" class="{{ 'on' if p.startswith('/cycles') or p.startswith('/checklist') }}">Цикли і чек-лист</a>{% endif %}
+    {% if role in ('upov', 'kerivnyk') %}<a href="/digest" class="{{ 'on' if p.startswith('/digest') }}">Зведення</a>{% endif %}
+    {% if role in ('upov', 'kerivnyk') %}<a href="/cycles" class="{{ 'on' if p.startswith('/cycles') or p.startswith('/checklist') or p.startswith('/indicators') }}">Цикли і чек-лист</a>{% endif %}
     <a href="/methodology" class="{{ 'on' if p.startswith('/methodology') }}">Методика</a>
     {% if role in ('upov', 'kerivnyk') %}<a href="/audit" class="{{ 'on' if p.startswith('/audit') }}">Журнал дій</a>{% endif %}
   {% else %}
@@ -33,6 +34,6 @@
 {% if flash %}<div class="flash">{{ flash }}</div>{% endif %}
 {% block content %}{% endblock %}
 </div></main>
-<footer><div class="wrap">Прототип для IV Хакатону BITEC. Розрахунки виконуються за відкритими правилами (див. «Методика»); штучний інтелект у формуванні висновків не використовується. Оцінювання — інструмент розвитку, а не контролю чи покарання.</div></footer>
+<footer><div class="wrap">Прототип для IV Хакатону BITEC. Розрахунки, сигнали й рекомендації формуються за відкритими правилами (див. «Методика»). ШІ лише допомагає сформулювати чернетку аналітичної записки, яку затверджує людина. Оцінювання — інструмент розвитку, а не контролю чи покарання.</div></footer>
 </body>
 </html>

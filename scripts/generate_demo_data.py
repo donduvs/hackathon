@@ -18,6 +18,7 @@
 """
 import hashlib
 import json
+from datetime import date, timedelta
 import math
 import random
 import sys
@@ -116,7 +117,23 @@ def main():
              "Структуру розділу на сайті погоджено, наповнення не завершено."),
             (2, "screening", "D4.1", "рівень нижче «Визначеного» (правило P1)", "done", "Відділ кадрів", "2026-03-01",
              "Затверджено порядок обліку близьких осіб."),
+            (2, "whistle", "D2.7", "рівень нижче «Визначеного» (правило P1)", "in_progress", "Антикорупційний уповноважений",
+             (date.today() + timedelta(days=5)).isoformat(), "Підготовлено проєкт порядку роботи з повідомленнями."),
         ]
+        # об'єктивні показники (синтетичні): охоплення навчанням 2025 р. навмисно нижче порогу,
+        # щоб показати розбіжність з оцінками респондентів (правило R4)
+        IND = {
+            1: {"training_coverage": 38, "whistle_reports": 0.0, "whistle_on_time": 60, "coi_notifications": 0.3,
+                "audit_recs_done": 35, "screening_done": 55, "site_publications": 2},
+            2: {"training_coverage": 46, "whistle_reports": 0.6, "whistle_on_time": 75, "coi_notifications": 1.4,
+                "audit_recs_done": 40, "screening_done": 62, "site_publications": 3},
+            3: {"training_coverage": 81, "whistle_reports": 1.1, "site_publications": 6},
+        }
+        src = {"training_coverage": "файл moodle-zvit.xlsx", "site_publications": "API: вебсайт закладу"}
+        for cid, vals in IND.items():
+            for k, v in vals.items():
+                con.execute("INSERT INTO indicators VALUES (?,?,?,?,?,?)",
+                            (cid, k, v, src.get(k, "внесено вручну"), "Уповноважена особа", f"{2023 + cid}-06-01 10:00"))
         for cid, qid, mid, reason, status, resp, due, note in recs:
             con.execute("""INSERT INTO recommendations (cycle_id, question_id, measure_id, reason, status, responsible, due,
                            decided_by, decision_note, result_note) VALUES (?,?,?,?,?,?,?,?,?,?)""",

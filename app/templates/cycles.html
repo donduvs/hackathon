@@ -39,6 +39,7 @@
     <h2 style="margin:0">{{ c.title }} {% if c.status == 'active' %}<span class="badge warn">триває</span>{% else %}<span class="badge">завершено {{ c.closed }}</span>{% endif %}</h2>
     <div class="row">
       <a class="btn ghost small" href="/checklist/{{ c.id }}">Чек-лист</a>
+      <a class="btn ghost small" href="/indicators/{{ c.id }}">Об'єктивні показники</a>
       {% if c.status == 'active' and role == 'upov' %}
         {% if printable %}<a class="btn ghost small" href="/cycles/{{ c.id }}/sheet.pdf">Аркуш кодів з QR (PDF, {{ printable }})</a>{% endif %}
         <form class="inline" method="post" action="/cycles/{{ c.id }}/close" onsubmit="return confirm('Завершити цикл? Невикористані коди перестануть діяти, а результати стануть доступні.')"><button class="btn small">Завершити цикл і відкрити результати</button></form>

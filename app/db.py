@@ -63,6 +63,23 @@ CREATE TABLE IF NOT EXISTS recommendations (
     responsible TEXT, due TEXT,
     decided_by TEXT, decision_note TEXT, result_note TEXT
 );
+-- Об'єктивні показники: значення за цикл, джерело і хто вніс (файл, API чи вручну).
+CREATE TABLE IF NOT EXISTS indicators (
+    cycle_id INTEGER NOT NULL,
+    ind_id TEXT NOT NULL,
+    value REAL NOT NULL,
+    source TEXT, entered_by TEXT, ts TEXT,
+    PRIMARY KEY (cycle_id, ind_id)
+);
+-- Аналітична записка до звіту: чернетка (ШІ або шаблон) і затвердження людиною.
+CREATE TABLE IF NOT EXISTS drafts (
+    cycle_id INTEGER PRIMARY KEY,
+    text TEXT NOT NULL,
+    source TEXT NOT NULL,          -- ai | template | edited
+    model TEXT, warnings TEXT,
+    status TEXT NOT NULL,          -- draft | approved
+    created TEXT, approved_by TEXT
+);
 -- Журнал дій посадових осіб (дії респондентів не журналюються).
 CREATE TABLE IF NOT EXISTS audit (
     id INTEGER PRIMARY KEY,

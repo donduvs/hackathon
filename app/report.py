@@ -114,6 +114,11 @@ def report_docx(cycle, res):
         d.add_paragraph("Виявлені сигнали для додаткового аналізу:")
         for s in res["signals"]:
             d.add_paragraph(f"– {s['title']}. {s['text']}")
+    if cycle.get("draft"):
+        d.add_paragraph().add_run("Аналітична записка").bold = True
+        for par in cycle["draft"].split("\n"):
+            if par.strip():
+                d.add_paragraph(par.strip())
     d.add_paragraph("Пропозиції:")
     d.add_paragraph("1. Врахувати отримані результати під час розробки Плану заходів забезпечення функціонування "
                     f"{inst} на засадах прозорості та доброчесності.")
@@ -161,6 +166,11 @@ def report_pdf(cycle, res):
     el.append(Paragraph("Напрями, що потребують більшої уваги: " + "; ".join(q["title"] for q in weak) + ".", base))
     for s in res["signals"]:
         el.append(Paragraph(f"– {s['title']}. {s['text']}", base))
+    if cycle.get("draft"):
+        el.append(Paragraph("Аналітична записка", bold))
+        for par in cycle["draft"].split("\n"):
+            if par.strip():
+                el.append(Paragraph(par.strip().replace("&", "&amp;").replace("<", "&lt;"), base))
     el.append(Paragraph(f"Пропозиція: передбачити заходи для переходу з рівня «{lvname}» на рівень «{nxt}».", base))
     doc.build(el)
     return buf.getvalue()

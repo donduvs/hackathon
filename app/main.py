@@ -71,8 +71,29 @@ def checklist_of(con, cid):
     return {r["item_no"]: r["status"] for r in con.execute("SELECT * FROM checklist_status WHERE cycle_id=?", (cid,))}
 
 
-def result(con, cid):
-    return E.compute(db.responses(con, cid), checklist_of(con, cid))
+def indicators_of(con, cid):
+    """Значення об'єктивних показників: внесені (файл, API, вручну) і ті, що система рахує сама."""
+    vals = {r["ind_id"]: r["value"] for r in con.execute("SELECT * FROM indicators WHERE cycle_id=?", (cid,))}
+    issued = con.execute("SELECT COUNT(*) FROM codes WHERE cycle_id=?", (cid,)).fetchone()[0]
+    if issued:
+        used = con.execute("SELECT COUNT(*) FROM codes WHERE cycle_id=? AND used=1", (cid,)).fetchone()[0]
+        vals["response_rate"] = round(100 * used / issued, 1)
+    prev = con.execute("""SELECT status FROM recommendations WHERE cycle_id<? AND status IN
+                          ('accepted','in_progress','done')""", (cid,)).fetchall()
+    if prev:
+        vals["measures_on_time"] = round(100 * sum(1 for r in prev if r["status"] == "done") / len(prev), 1)
+    return vals
+
+
+RG_OPTIONS = {"30": (0.3, 0.7), "50": (0.5, 0.5), "0": (0.0, 1.0)}
+
+
+def result(con, cid, rg=None):
+    st = None
+    if rg in RG_OPTIONS and rg != "30":
+        st = json.loads(json.dumps(E.SETTINGS))
+        st["weights"]["groups"] = {"RG": RG_OPTIONS[rg][0], "OS": RG_OPTIONS[rg][1]}
+    return E.compute(db.responses(con, cid), checklist_of(con, cid), st, indicators_of(con, cid))
 
 
 def pick_cycle(request, con):
@@ -111,9 +132,12 @@ async def dashboard(request):
     cur, cl = pick_cycle(request, con)
     if not cur:
         return render(request, "dashboard.html", cur=None)
-    res = result(con, cur["id"])
-    hist = [(c, result(con, c["id"])) for c in cl]
+    rg = request.query_params.get("rg", "30")
+    rg = rg if rg in RG_OPTIONS else "30"
+    res = result(con, cur["id"], rg)
+    hist = [(c, result(con, c["id"], rg)) for c in cl]
     prev = next((r for c, r in reversed(hist) if c["year"] < cur["year"]), None)
+    draft = con.execute("SELECT * FROM drafts WHERE cycle_id=?", (cur["id"],)).fetchone()
     recs = [dict(r) for r in con.execute("SELECT * FROM recommendations ORDER BY id")]
     active = next((c for c in cycles(con) if c["status"] == "active"), None)
     series = {
@@ -124,7 +148,7 @@ async def dashboard(request):
         "radar_os": [res["questions"][q["id"]]["median"]["OS"] for q in E.QUESTIONS],
     }
     return render(request, "dashboard.html", cur=cur, cl=cl, res=res, hist=hist, prev=prev, recs=recs,
-                  active=active, series=series)
+                  active=active, series=series, rg=rg, draft=dict(draft) if draft else None)
 
 
 async def question(request):
@@ -139,8 +163,9 @@ async def question(request):
     hist = [(c, result(con, c["id"])) for c in cl]
     items = [i for i in E.CHECKLIST["items"] if qid in i["questions"]]
     recs = [dict(r) for r in con.execute("SELECT * FROM recommendations WHERE question_id=? ORDER BY cycle_id", (qid,))]
+    inds = [(E.IND_BY[r["id"]], r) for r in res["indicators"] if E.IND_BY[r["id"]]["question"] == qid]
     return render(request, "question.html", q=E.QBY[qid], cur=cur, cl=cl, res=res, hist=hist,
-                  desc=E.describe(qid, res), items=items, recs=recs,
+                  desc=E.describe(qid, res), items=items, recs=recs, inds=inds,
                   measures={m["id"]: m for m in E.MEASURES["measures"]})
 
 
@@ -365,10 +390,14 @@ async def _start(request, code):
     con = db.connect()
     row = con.execute("""SELECT codes.*, cycles.status FROM codes JOIN cycles ON cycles.id = codes.cycle_id
                          WHERE code_hash=?""", (h(code),)).fetchone()
-    if not row or row["status"] != "active":
-        return go("/survey", request, "Код не знайдено або цикл оцінювання не активний.")
+    if not row:
+        return go("/survey", request, "Код не знайдено. Перевірте, чи правильно його введено.")
+    if row["status"] != "active":
+        # картка з кодом — «квиток» до результатів: після завершення циклу той самий QR відкриває результати
+        request.session["respondent_grp"] = row["grp"]
+        return go(f"/results?grp={row['grp']}", request, "Опитування завершено. Ось узагальнені результати.")
     if row["used"]:
-        return go("/survey", request, "Цей код уже використано. Кожен код дає змогу пройти опитування один раз.")
+        return go("/survey", request, "Ви вже пройшли опитування за цим кодом. Після завершення циклу цей самий QR відкриє результати.")
     request.session["survey"] = {"h": row["code_hash"], "cycle": row["cycle_id"], "grp": row["grp"]}
     return go("/survey/form")
 
@@ -418,7 +447,9 @@ async def results_public(request):
     grp = request.query_params.get("grp") or request.session.get("respondent_grp") or "STUD"
     if grp not in E.GROUPS:
         grp = "STUD"
-    return render(request, "results.html", cur=cur, res=res, grp=grp)
+    cmp = [{"id": q["id"], "title": f"{q['report_no']} {q['title']}", "level": res["questions"][q["id"]]["level"],
+            "groups": {g: res["questions"][q["id"]]["median"][g] for g in E.GROUPS}} for q in E.QUESTIONS]
+    return render(request, "results.html", cur=cur, res=res, grp=grp, cmp=cmp)
 
 
 # ---------------------------------------------------------------- демо і API
@@ -466,6 +497,8 @@ async def report(request):
     fmt_ = request.path_params["fmt"]
     c = dict(con.execute("SELECT * FROM cycles WHERE id=?", (cid,)).fetchone())
     res = result(con, cid)
+    dr = con.execute("SELECT text FROM drafts WHERE cycle_id=? AND status='approved'", (cid,)).fetchone()
+    c["draft"] = dr["text"] if dr else None
     with db.tx() as con2:
         db.log(con2, ROLES[role(request)], f"Сформовано звіт {fmt_.upper()}", f"цикл {c['year']}")
     if fmt_ == "docx":
@@ -476,6 +509,204 @@ async def report(request):
         mt = "application/pdf"
     return Response(data, media_type=mt,
                     headers={"Content-Disposition": f'attachment; filename="camerton-zvit-{c["year"]}.{fmt_}"'})
+
+
+# ---------------------------------------------------------------- об'єктивні показники
+def _save_indicators(con, cid, values, source, who):
+    from datetime import datetime
+    saved = []
+    for k, v in values.items():
+        if k not in E.IND_BY or E.IND_BY[k]["auto"]:
+            continue
+        try:
+            v = float(str(v).replace(",", ".").replace("%", "").strip())
+        except ValueError:
+            continue
+        con.execute("""INSERT INTO indicators (cycle_id, ind_id, value, source, entered_by, ts) VALUES (?,?,?,?,?,?)
+                       ON CONFLICT(cycle_id, ind_id) DO UPDATE SET value=excluded.value, source=excluded.source,
+                       entered_by=excluded.entered_by, ts=excluded.ts""",
+                    (cid, k, v, source, who, datetime.now().strftime("%Y-%m-%d %H:%M")))
+        saved.append(k)
+    return saved
+
+
+def _parse_table(name, data):
+    """CSV або Excel з колонками: показник (id або назва), значення."""
+    rows = []
+    if name.lower().endswith(".xlsx"):
+        import io
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        rows = [[c for c in r] for r in wb.active.iter_rows(values_only=True)]
+    else:
+        import csv
+        import io
+        text = data.decode("utf-8-sig", errors="replace")
+        dialect = csv.Sniffer().sniff(text[:2000], delimiters=",;\t") if text.strip() else csv.excel
+        rows = list(csv.reader(io.StringIO(text), dialect))
+    by_title = {i["title"].lower(): i["id"] for i in E.INDICATORS["indicators"]}
+    out = {}
+    for r in rows:
+        if not r or len(r) < 2 or r[0] is None:
+            continue
+        key = str(r[0]).strip()
+        key = key if key in E.IND_BY else by_title.get(key.lower())
+        if key and r[1] not in (None, ""):
+            out[key] = r[1]
+    return out
+
+
+async def indicators_page(request):
+    if not need(request, "upov", "kerivnyk"):
+        return go("/", request, "Розділ доступний уповноваженій особі.")
+    cid = int(request.path_params["cid"])
+    con = db.connect()
+    c = dict(con.execute("SELECT * FROM cycles WHERE id=?", (cid,)).fetchone())
+    if request.method == "POST":
+        if role(request) != "upov":
+            return go(f"/indicators/{cid}", request, "Показники вносить уповноважена особа.")
+        f = await request.form()
+        up = f.get("file")
+        with db.tx() as con2:
+            if up is not None and getattr(up, "filename", ""):
+                try:
+                    vals = _parse_table(up.filename, await up.read())
+                except Exception:
+                    return go(f"/indicators/{cid}", request, "Не вдалося прочитати файл. Потрібен CSV або Excel з колонками «показник» і «значення».")
+                saved = _save_indicators(con2, cid, vals, f"файл {up.filename}", ROLES["upov"])
+                db.log(con2, ROLES["upov"], "Імпортовано об'єктивні показники з файлу", f"{up.filename}: {len(saved)}")
+                msg = f"Імпортовано показників: {len(saved)}."
+            else:
+                vals = {k[4:]: v for k, v in f.items() if k.startswith("ind_") and str(v).strip()}
+                saved = _save_indicators(con2, cid, vals, "внесено вручну", ROLES["upov"])
+                db.log(con2, ROLES["upov"], "Внесено об'єктивні показники вручну", f"цикл {c['year']}: {len(saved)}")
+                msg = "Збережено."
+        return go(f"/indicators/{cid}", request, msg)
+    rows = {r["ind_id"]: dict(r) for r in con.execute("SELECT * FROM indicators WHERE cycle_id=?", (cid,))}
+    res = result(con, cid)
+    state = {r["id"]: r for r in res["indicators"]}
+    return render(request, "indicators.html", c=c, rows=rows, state=state, res=res, IND=E.INDICATORS,
+                  api_on=bool(os.environ.get("IMD_API_TOKEN")))
+
+
+async def indicators_template(request):
+    lines = ["показник;значення;назва (довідково)"] + [f"{i['id']};;{i['title']}" for i in E.INDICATORS["indicators"] if not i["auto"]]
+    return Response("﻿" + "\n".join(lines) + "\n", media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="obiektyvni-pokaznyky-shablon.csv"'})
+
+
+async def api_indicators(request):
+    """Прийом показників від інших систем: POST з ключем у заголовку Authorization: Bearer <IMD_API_TOKEN>."""
+    token = os.environ.get("IMD_API_TOKEN")
+    if not token:
+        return JSONResponse({"error": "Прийом даних вимкнено: не задано IMD_API_TOKEN"}, status_code=403)
+    if request.headers.get("authorization", "") != f"Bearer {token}":
+        return JSONResponse({"error": "Невірний ключ доступу"}, status_code=401)
+    try:
+        body = await request.json()
+        year = int(body["year"])
+        values = {i["id"]: i["value"] for i in body["indicators"]}
+    except Exception:
+        return JSONResponse({"error": 'Очікується JSON: {"year": 2026, "indicators": [{"id": "...", "value": 0}]}'}, status_code=400)
+    with db.tx() as con:
+        c = con.execute("SELECT * FROM cycles WHERE year=?", (year,)).fetchone()
+        if not c:
+            return JSONResponse({"error": f"Цикл {year} року не знайдено"}, status_code=404)
+        saved = _save_indicators(con, c["id"], values, str(body.get("source") or "API"), "Інша система (API)")
+        db.log(con, "Інша система (API)", "Отримано об'єктивні показники через API", f"{year}: {', '.join(saved)}")
+    unknown = [k for k in values if k not in saved]
+    return JSONResponse({"saved": saved, "ignored": unknown})
+
+
+# ---------------------------------------------------------------- аналітична записка (ШІ-чернетка)
+from . import ai  # noqa: E402
+
+
+def _draft_ctx(con, cid):
+    cl = closed_cycles(con)
+    c = next(x for x in cl if x["id"] == cid)
+    res = result(con, cid)
+    prevc = next((x for x in reversed(cl) if x["year"] < c["year"]), None)
+    prev = result(con, prevc["id"]) if prevc else None
+    return c, res, prev, E.propose(res)
+
+
+async def draft_page(request):
+    if not need(request, "kerivnyk", "upov"):
+        return go("/")
+    cid = int(request.path_params["cid"])
+    con = db.connect()
+    c = dict(con.execute("SELECT * FROM cycles WHERE id=?", (cid,)).fetchone())
+    if c["status"] != "closed":
+        return go("/dashboard", request, "Записка формується лише для завершеного циклу.")
+    if request.method == "POST":
+        f = await request.form()
+        act = f.get("action")
+        from datetime import datetime
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        with db.tx() as con2:
+            if act == "generate":
+                c2, res, prev, props = _draft_ctx(con2, cid)
+                text, src, model, warn = ai.generate(c2, res, prev, props)
+                con2.execute("""INSERT INTO drafts (cycle_id, text, source, model, warnings, status, created, approved_by)
+                                VALUES (?,?,?,?,?,'draft',?,NULL) ON CONFLICT(cycle_id) DO UPDATE SET text=excluded.text,
+                                source=excluded.source, model=excluded.model, warnings=excluded.warnings, status='draft',
+                                created=excluded.created, approved_by=NULL""", (cid, text, src, model, warn, now))
+                db.log(con2, ROLES[role(request)], "Сформовано чернетку аналітичної записки",
+                       f"цикл {c['year']}: " + (f"ШІ ({model})" if src == "ai" else "шаблон"))
+                msg = "Чернетку сформовано. Перевірте й відредагуйте текст перед затвердженням."
+            elif act == "save":
+                con2.execute("UPDATE drafts SET text=?, source=CASE WHEN source='template' THEN 'template' ELSE 'edited' END, status='draft', approved_by=NULL WHERE cycle_id=?",
+                             ((f.get("text") or "").strip(), cid))
+                db.log(con2, ROLES[role(request)], "Відредаговано чернетку аналітичної записки", f"цикл {c['year']}")
+                msg = "Зміни збережено."
+            elif act == "approve" and role(request) == "kerivnyk":
+                con2.execute("UPDATE drafts SET text=?, status='approved', approved_by=? WHERE cycle_id=?",
+                             ((f.get("text") or "").strip(), ROLES["kerivnyk"], cid))
+                db.log(con2, ROLES["kerivnyk"], "Затверджено аналітичну записку", f"цикл {c['year']}")
+                msg = "Записку затверджено. Вона увійде до звіту DOCX і PDF."
+            else:
+                msg = "Затверджує записку керівник."
+        return go(f"/draft/{cid}", request, msg)
+    d = con.execute("SELECT * FROM drafts WHERE cycle_id=?", (cid,)).fetchone()
+    return render(request, "draft.html", c=c, d=dict(d) if d else None, cfg=ai.config())
+
+
+# ---------------------------------------------------------------- тижневе зведення
+def digest_data(con):
+    from datetime import date, timedelta
+    today = date.today()
+    soon = (today + timedelta(days=7)).isoformat()
+    open_ = [dict(r) for r in con.execute("""SELECT * FROM recommendations WHERE status IN ('accepted','in_progress')
+                                               ORDER BY due""")]
+    meas = {m["id"]: m for m in E.MEASURES["measures"]}
+    for r in open_:
+        r["measure"] = meas.get(r["measure_id"], {}).get("title", r["measure_id"])
+    week_ago = (today - timedelta(days=7)).isoformat()
+    changes = [dict(r) for r in con.execute("""SELECT * FROM audit WHERE ts>=? AND action IN
+        ('Оновлено статус рекомендації','Рекомендацію прийнято','Рекомендацію відхилено') ORDER BY id DESC""", (week_ago,))]
+    return {
+        "date": today.isoformat(),
+        "overdue": [r for r in open_ if r["due"] and r["due"] < today.isoformat()],
+        "due_soon": [r for r in open_ if r["due"] and today.isoformat() <= r["due"] <= soon],
+        "in_work": [r for r in open_ if not r["due"] or r["due"] > soon],
+        "changes": changes,
+    }
+
+
+async def digest(request):
+    if not need(request, "kerivnyk", "upov"):
+        return go("/")
+    con = db.connect()
+    return render(request, "digest.html", d=digest_data(con))
+
+
+async def api_digest(request):
+    con = db.connect()
+    d = digest_data(con)
+    slim = lambda rs: [{k: r[k] for k in ("measure_id", "measure", "responsible", "due", "status")} for r in rs]  # noqa: E731
+    return JSONResponse({"date": d["date"], "overdue": slim(d["overdue"]), "due_soon": slim(d["due_soon"]),
+                         "in_work": slim(d["in_work"]), "changes_last_7_days": len(d["changes"])})
 
 
 if not db.DB_PATH.exists():
@@ -497,6 +728,11 @@ routes = [
     Route("/report/{cid:int}.{fmt:str}", report),
     Route("/demo/reset", demo_reset, methods=["POST"]),
     Route("/api/cycles", api_cycles), Route("/api/cycles/{cid:int}/summary", api_summary),
+    Route("/indicators/{cid:int}", indicators_page, methods=["GET", "POST"]),
+    Route("/indicators/template.csv", indicators_template),
+    Route("/api/indicators", api_indicators, methods=["POST"]),
+    Route("/draft/{cid:int}", draft_page, methods=["GET", "POST"]),
+    Route("/digest", digest), Route("/api/digest", api_digest),
     Mount("/static", StaticFiles(directory=BASE / "static"), name="static"),
 ]
 

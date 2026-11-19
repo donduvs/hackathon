@@ -42,6 +42,10 @@
     {% for rc in recs %}<p><span class="badge {{ 'grey' if rc.status == 'rejected' else '' }}">{{ REC_STATUS[rc.status] }}</span> {{ measures[rc.measure_id].title }}<br><span class="note">Цикл {% for c in cl if c.id == rc.cycle_id %}{{ c.year }}{% else %}{{ rc.cycle_id }}{% endfor %} · {{ rc.responsible or '—' }} · строк {{ rc.due or '—' }}</span></p>
     {% else %}<p class="muted">Рекомендацій ще не було.</p>{% endfor %}</div>
 </div>
+{% if inds %}<div class="card" style="margin-top:18px"><h2>Об'єктивні показники</h2>
+{% for i, r in inds %}<p><b>{{ i.title }}</b>: {{ fmt(r.value) if r.value is not none else 'немає даних' }} {{ i.unit if r.value is not none }} <span class="note">(поріг {{ fmt(i.threshold) }}; джерело: {{ i.source }})</span>
+{% if r.state == 'conflict' %}<span class="badge warn">розбіжність з оцінками</span>{% elif r.state == 'consistent' %}<span class="badge">узгоджується з оцінками</span>{% elif r.state == 'better' %}<span class="badge grey">факти кращі за оцінки</span>{% endif %}</p>{% endfor %}
+</div>{% endif %}
 <details style="margin-top:18px"><summary>Повні тексти варіантів відповіді (Анкета 1)</summary>
   <ol>{% for o in q.options.A1 %}<li>{{ o }}</li>{% endfor %}</ol></details>
 {% endblock %}

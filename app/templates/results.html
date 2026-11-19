@@ -12,6 +12,23 @@
   {% else %}<p class="muted">У цій категорії відповідей менше за поріг — результати не показуються, щоб унеможливити ідентифікацію.</p>{% endif %}
   </div>
 </div>
+<div class="card" id="mine" style="margin-top:18px" hidden><h2>Ваші відповіді і заклад</h2>
+<p class="note">Порівняння рахується лише на вашому пристрої: ваші відповіді збережено в пам'яті цього браузера під час опитування, сервер їх не знає.</p>
+<table id="mine-t"><tr><th>Питання</th><th class="num">Ви</th><th class="num">Ваша категорія</th><th class="num">Заклад</th></tr></table>
+<p><button class="btn ghost small" id="forget" type="button">Видалити мої відповіді з цього пристрою</button></p></div>
 <div class="card" style="margin-top:18px"><h2>Що заклад робить за результатами</h2>
 <p class="muted">Найслабші напрями: {% for q in res.weak %}{{ E.QBY[q].title }}{{ '; ' if not loop.last }}{% endfor %}. За ними керівництво ухвалює рекомендації з відповідальними і строками; їх виконання перевіряється наступним опитуванням. Ваша чесна відповідь безпосередньо впливає на ці рішення.</p></div>
+<script>
+(function () {
+  var d; try { d = JSON.parse(localStorage.getItem('kamerton_my') || 'null'); } catch (e) {}
+  if (!d || d.cycle !== {{ cur.id }}) return;
+  var Q = {{ cmp|tojson }}, t = document.getElementById('mine-t'), f = function (x) { return x == null ? '—' : String(Math.round(x * 10) / 10).replace('.', ','); };
+  Q.forEach(function (q) { if (!(q.id in d.answers)) return;
+    var g = q.groups[d.grp], tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + q.title + '</td><td class="num"><b>' + d.answers[q.id] + '</b></td><td class="num">' + f(g) + '</td><td class="num">' + f(q.level) + '</td>';
+    t.appendChild(tr); });
+  document.getElementById('mine').hidden = false;
+  document.getElementById('forget').onclick = function () { localStorage.removeItem('kamerton_my'); document.getElementById('mine').hidden = true; };
+})();
+</script>
 {% endblock %}

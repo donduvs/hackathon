@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<p class="note"><a href="/cycles">← Цикли</a></p>
+<h1>Об'єктивні показники · {{ c.year }}</h1>
+<p class="sub">{{ IND.about }}</p>
+<div class="card">
+<h2>Показники та зіставлення з анкетами</h2>
+<form method="post">
+<table>
+<tr><th>Показник</th><th>Звідки</th><th class="num">Значення</th><th class="num">Поріг</th><th>Питання анкети</th><th>Стан</th></tr>
+{% for i in IND.indicators %}{% set st = state[i.id] %}{% set r = rows.get(i.id) %}
+<tr>
+  <td>{{ i.title }}{% if i.note %}<br><span class="note">{{ i.note }}</span>{% endif %}</td>
+  <td class="note">{{ i.source }}{% if r %}<br>внесено: {{ r.source }}, {{ r.ts }}{% endif %}</td>
+  <td class="num">{% if i.auto or role != 'upov' %}{{ fmt(st.value) }}{% else %}<input type="text" name="ind_{{ i.id }}" value="{{ fmt(st.value) if st.value is not none else '' }}" size="6" inputmode="decimal" aria-label="{{ i.title }}">{% endif %} <span class="note">{{ i.unit }}</span></td>
+  <td class="num">{{ fmt(i.threshold) }}</td>
+  <td>{% if i.question %}<a href="/question/{{ i.question }}?cycle={{ c.id }}">{{ E.QBY[i.question].report_no }} {{ E.QBY[i.question].title }}</a><br><span class="note">рівень за анкетами: {{ fmt(st.level) }}</span>{% else %}<span class="note">загальна достовірність</span>{% endif %}</td>
+  <td>{% if st.state == 'conflict' %}<span class="badge warn">розбіжність (R4)</span>
+      {% elif st.state == 'consistent' %}<span class="badge">узгоджується</span>
+      {% elif st.state == 'better' %}<span class="badge grey">факти кращі за оцінки</span>
+      {% elif st.state == 'low' %}<span class="badge warn">нижче порогу</span>
+      {% elif st.state == 'ok' %}<span class="badge">в нормі</span>
+      {% else %}<span class="note">немає даних</span>{% endif %}</td>
+</tr>{% endfor %}
+</table>
+{% if role == 'upov' %}<p style="margin-top:12px"><button class="btn">Зберегти значення</button></p>{% endif %}
+</form>
+<p class="note">«Узгоджується» — факти підтверджують оцінки. «Розбіжність» — оцінки високі, а факти нижче порогу: можливі соціально бажані відповіді. «Факти кращі за оцінки» — зроблене не помітне людям, варто більше комунікувати. Показники до Integrity Index не входять.</p>
+</div>
+
+{% if role == 'upov' %}
+<div class="grid g2" style="margin-top:18px">
+<div class="card">
+  <h2>Імпорт із файлу</h2>
+  <p>Вивантажте таблицю з наявної системи (облік навчання, журнал уповноваженої особи, кадровий облік) у форматі CSV або Excel: перша колонка — показник, друга — значення.</p>
+  <form method="post" enctype="multipart/form-data" class="row">
+    <input type="file" name="file" accept=".csv,.xlsx" required>
+    <button class="btn">Імпортувати</button>
+  </form>
+  <p class="note"><a href="/indicators/template.csv">Завантажити шаблон CSV</a> із переліком кодів показників.</p>
+</div>
+<div class="card">
+  <h2>Автоматичне надходження через API</h2>
+  <p>Інша система закладу може передавати показники сама, без участі людини:</p>
+  <pre style="white-space:pre-wrap;font-size:12.5px;background:#F7F6F2;padding:10px;border-radius:10px">POST /api/indicators
+Authorization: Bearer &lt;ключ&gt;
+{"year": {{ c.year }}, "source": "Moodle",
+ "indicators": [{"id": "training_coverage", "value": 72}]}</pre>
+  <p class="note">{% if api_on %}Прийом даних увімкнено.{% else %}Прийом даних вимкнено: адміністратор задає ключ у змінній IMD_API_TOKEN.{% endif %} Кожне надходження записується в журнал дій.</p>
+</div>
+</div>
+{% endif %}
+{% endblock %}
