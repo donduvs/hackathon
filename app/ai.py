@@ -35,6 +35,12 @@ SYSTEM = (
     "5) пріоритети на наступний рік (лише із запропонованих заходів). "
     "Integrity Index — це бал зі 100, а не відсоток: пиши «42,7 з 100». Рівні питань і компонентів — за шкалою від 1 до 5. "
     "Не вигадуй порогів і порівнянь, яких немає в даних; пороги є лише в описі сигналів. "
+    "Суворі правила: (а) не стверджуй, що групи оцінили однаково, якщо в даних немає обох оцінок; "
+    "(б) не роби висновків про швидкість, причини чи тенденції, яких немає в даних; "
+    "(в) завищену самооцінку тлумач лише як схильність до соціально бажаних відповідей, а не як ваду методики; "
+    "(г) кожен захід згадуй тільки разом із тим питанням, на яке він спрямований за даними; "
+    "(ґ) не обіцяй результатів заходів (жодних «забезпечить», «гарантує»); "
+    "(д) обов'язково згадай кожну розбіжність з об'єктивними показниками з її числами. "
     "Обсяг 250–400 слів, офіційно-діловий стиль, без маркованих списків і без заголовків, 4–6 абзаців."
 )
 
@@ -57,8 +63,10 @@ def facts(cycle, res, prev=None, proposals=()):
     q = {}
     for qq in E.QUESTIONS:
         r = res["questions"][qq["id"]]
-        q[f"{qq['report_no']} {qq['title']}"] = {
-            "рівень": E.fmt(r["level"]), "РГ": E.fmt(r["median"]["RG"]), "ОС": E.fmt(r["median"]["OS"])}
+        row = {"рівень": E.fmt(r["level"]), "РГ": E.fmt(r["median"]["RG"]), "ОС": E.fmt(r["median"]["OS"])}
+        if r["median"]["OS"] is None:
+            row["примітка"] = "питання є лише в Анкеті 1: його оцінює тільки робоча група, порівнювати з ОС не можна"
+        q[f"{qq['report_no']} {qq['title']}"] = row
     return {
         "заклад": E.SETTINGS["institution"], "рік": cycle["year"],
         "Integrity Index": E.fmt(res["index"]), "рівень зрілості": E.level_name(res["level"]),
@@ -68,9 +76,16 @@ def facts(cycle, res, prev=None, proposals=()):
         "питання": q,
         "сильні сторони": [E.QBY[x]["title"] for x in res["strong"]],
         "проблемні напрями": [E.QBY[x]["title"] for x in res["weak"]],
-        "сигнали": [s["title"] + ". " + s["text"].split(" Правило")[0] for s in res["signals"]],
+        "сигнали: розрив між групами": [s["title"] + ": " + s["text"].split(" Правило")[0] for s in res["signals"] if s["type"] == "gap"],
+        "сигнали: завищена самооцінка (тлумачити як схильність до соціально бажаних відповідей)":
+            [s["text"].split(" Правило")[0] for s in res["signals"] if s["type"] == "self"],
+        "сигнали: розбіжність із чек-листом": [s["title"] + ": " + s["text"].split(" Правило")[0] for s in res["signals"] if s["type"] == "checklist"],
+        "сигнали: розбіжність з об'єктивними показниками (ОБОВ'ЯЗКОВО згадати з числами)":
+            [s["text"].split(" Правило")[0] for s in res["signals"] if s["type"] == "objective"],
         "впровадження інструментів за чек-листом, %": E.fmt(res["implementation"], 0),
-        "запропоновані заходи": [f"{p['measure']['id']} {p['measure']['title']}" for p in proposals][:6],
+        "запропоновані заходи (код — назва — на яке питання спрямований; не змінюй цієї відповідності)": [
+            f"{p['measure']['id']} — {p['measure']['title']} — питання {E.QBY[p['question']]['report_no']} {E.QBY[p['question']]['title']}"
+            for p in proposals][:6],
     }
 
 
@@ -128,7 +143,7 @@ def generate(cycle, res, prev=None, proposals=()):
         else:
             base = {"groq": "https://api.groq.com/openai/v1"}.get(cfg["provider"], cfg["base"] or "http://localhost:11434/v1")
             hdr = {"Authorization": f"Bearer {cfg['key']}"} if cfg["key"] else {}
-            req = {"model": cfg["model"], "temperature": 0.2, "max_tokens": 4000,
+            req = {"model": cfg["model"], "temperature": 0.1, "max_tokens": 4000,
                    "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]}
             if "gpt-oss" in cfg["model"]:
                 req["reasoning_effort"] = "low"   # модель міркує стисло, більше токенів лишається на текст
@@ -150,9 +165,13 @@ def generate(cycle, res, prev=None, proposals=()):
     return text, "ai", f"{cfg['provider']}: {cfg['model']}", check_numbers(text, data)
 
 
+RISKY = ("забезпечить", "гарантує", "гарантуватиме", "неодмінно", "швидше", "методик", "порушник", "корупціонер")
+
+
 def check_numbers(text, data):
-    """Запобіжник: числа в тексті ШІ, яких немає у вхідних даних, виносимо в попередження для людини.
-    Числа порівнюються за значенням, тож «46» і «46,0» вважаються однаковими."""
+    """Запобіжники для людини, яка затверджує записку. Нічого не виправляють самі, лише вказують, що перевірити."""
+    warn = []
+
     def nums(t):
         out = set()
         for n in re.findall(r"\d+(?:[.,]\d+)?", t):
@@ -161,8 +180,26 @@ def check_numbers(text, data):
             except ValueError:
                 pass
         return out
+    # 1) числа, яких немає у вхідних даних («46» і «46,0» вважаються однаковими)
     allowed = nums(json.dumps(data, ensure_ascii=False)) | {1.0, 2.0, 3.0, 4.0, 5.0, 100.0}
     odd = sorted(n for n in nums(text) if n not in allowed and n not in {float(data["рік"]), float(data["рік"]) - 1})
     if odd:
-        return "Перевірте числа, яких немає у вхідних даних: " + ", ".join(E.fmt(n) for n in odd) + "."
-    return ""
+        warn.append("числа, яких немає у вхідних даних: " + ", ".join(E.fmt(n) for n in odd))
+    # 2) коди заходів: лише запропоновані
+    key = next(k for k in data if k.startswith("запропоновані заходи"))
+    codes_ok = {x.split(" — ")[0] for x in data[key]}
+    bad = sorted(set(re.findall(r"D\d\.\d", text)) - codes_ok)
+    if bad:
+        warn.append("заходи, яких система не пропонувала: " + ", ".join(bad))
+    # 3) обов'язкові розбіжності з об'єктивними показниками
+    okey = next(k for k in data if k.startswith("сигнали: розбіжність з об'єктивними"))
+    for sig in data[okey]:
+        m = re.search(r"становить (\d+(?:,\d+)?)", sig)
+        if m and round(float(m.group(1).replace(",", ".")), 1) not in nums(text):
+            warn.append("не згадано розбіжність з об'єктивним показником: " + sig.split(", але")[1].strip()[:90])
+    # 4) ризиковані формулювання
+    low = text.lower()
+    risky = [w for w in RISKY if w in low]
+    if risky:
+        warn.append("перевірте формулювання зі словами: " + ", ".join(risky))
+    return ("Перевірте перед затвердженням: " + "; ".join(warn) + ".") if warn else ""
