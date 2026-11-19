@@ -33,6 +33,8 @@ SYSTEM = (
     "Структура: 1) загальний висновок про рівень зрілості та динаміку; 2) сильні сторони; "
     "3) проблемні напрями; 4) розбіжності між групами, із чек-листом і з об'єктивними показниками; "
     "5) пріоритети на наступний рік (лише із запропонованих заходів). "
+    "Integrity Index — це бал зі 100, а не відсоток: пиши «42,7 з 100». Рівні питань і компонентів — за шкалою від 1 до 5. "
+    "Не вигадуй порогів і порівнянь, яких немає в даних; пороги є лише в описі сигналів. "
     "Обсяг 250–400 слів, офіційно-діловий стиль, без маркованих списків і без заголовків, 4–6 абзаців."
 )
 
@@ -149,11 +151,18 @@ def generate(cycle, res, prev=None, proposals=()):
 
 
 def check_numbers(text, data):
-    """Запобіжник: числа в тексті ШІ, яких немає у вхідних даних, виносимо в попередження для людини."""
-    allowed = set(re.findall(r"\d+(?:[.,]\d+)?", json.dumps(data, ensure_ascii=False)))
-    allowed |= {a.replace(",", ".") for a in allowed} | {a.replace(".", ",") for a in allowed}
-    found = re.findall(r"\d+(?:[.,]\d+)?", text)
-    odd = sorted({n for n in found if n not in allowed and n not in {"1", "2", "3", "4", "5"}})
+    """Запобіжник: числа в тексті ШІ, яких немає у вхідних даних, виносимо в попередження для людини.
+    Числа порівнюються за значенням, тож «46» і «46,0» вважаються однаковими."""
+    def nums(t):
+        out = set()
+        for n in re.findall(r"\d+(?:[.,]\d+)?", t):
+            try:
+                out.add(round(float(n.replace(",", ".")), 1))
+            except ValueError:
+                pass
+        return out
+    allowed = nums(json.dumps(data, ensure_ascii=False)) | {1.0, 2.0, 3.0, 4.0, 5.0, 100.0}
+    odd = sorted(n for n in nums(text) if n not in allowed and n not in {float(data["рік"]), float(data["рік"]) - 1})
     if odd:
-        return "Перевірте числа, яких немає у вхідних даних: " + ", ".join(odd) + "."
+        return "Перевірте числа, яких немає у вхідних даних: " + ", ".join(E.fmt(n) for n in odd) + "."
     return ""
